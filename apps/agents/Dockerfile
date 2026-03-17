@@ -2,18 +2,16 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Dependencias del sistema para Playwright
 RUN apt-get update && apt-get install -y \
     wget curl gnupg \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY apps/agents/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Instalar Chromium para Playwright
 RUN playwright install chromium --with-deps
 
-COPY . .
+COPY apps/agents/ .
 
 EXPOSE 8000
 
