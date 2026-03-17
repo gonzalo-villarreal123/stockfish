@@ -24,8 +24,9 @@ HEADERS = {
     "Content-Type": "application/json",
 }
 
-supa_keys = [k for k in os.environ if "SUPA" in k.upper()]
-print(f"[ENV] Keys con SUPA: {supa_keys}")
+supa_keys = [k for k in os.environ if "SUPA" in k.upper() or "REST" in k.upper()]
+print(f"[ENV] Keys con SUPA/REST: {supa_keys}")
+print(f"[ENV] SUPABASE_REST_URL raw: {os.environ.get('SUPABASE_REST_URL', 'NOT_FOUND')}")
 print(f"[ENV] SUPABASE_URL={SUPABASE_URL}")
 print(f"[ENV] VOYAGE_API_KEY={'SET' if VOYAGE_API_KEY else 'MISSING'}")
 print(f"[ENV] ANTHROPIC_API_KEY={'SET' if ANTHROPIC_API_KEY else 'MISSING'}")
