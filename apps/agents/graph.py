@@ -24,6 +24,10 @@ HEADERS = {
     "Content-Type": "application/json",
 }
 
+print(f"[ENV] SUPABASE_URL={SUPABASE_URL}")
+print(f"[ENV] VOYAGE_API_KEY={'SET' if VOYAGE_API_KEY else 'MISSING'}")
+print(f"[ENV] ANTHROPIC_API_KEY={'SET' if ANTHROPIC_API_KEY else 'MISSING'}")
+
 voyage_client = voyageai.Client(api_key=VOYAGE_API_KEY)
 anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
