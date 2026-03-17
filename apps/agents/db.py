@@ -5,7 +5,7 @@ from typing import Optional, List
 
 load_dotenv()
 
-SUPABASE_URL = os.getenv("SUPABASE_REST_URL")
+SUPABASE_URL = os.getenv("SUPABASE_REST_URL") or os.getenv("SUPABASE_PROJECT_URL", "https://malbjvnmqhdalttcvroi.supabase.co")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 HEADERS = {
