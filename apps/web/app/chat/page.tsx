@@ -4,6 +4,19 @@ import { useState, useRef, useEffect } from "react";
 
 const AGENTS_URL = process.env.NEXT_PUBLIC_AGENTS_URL || "http://localhost:8000";
 
+const CATEGORY_LABELS: Record<string, string> = {
+  mueble:    "Muebles",
+  textil:    "Textiles",
+  lampara:   "Iluminación",
+  cuadro:    "Arte",
+  florero:   "Decoración",
+  escultura: "Esculturas",
+  espejo:    "Espejos",
+  planta:    "Plantas",
+};
+
+// ── Types ─────────────────────────────────────────────────
+
 interface Product {
   id: string;
   name: string;
@@ -12,15 +25,23 @@ interface Product {
   url: string;
   category: string;
   merchant_slug: string;
-  similarity: number;
-  rank: number;
 }
+
+interface ComboItem {
+  best: Product | null;
+  alternative: Product | null;
+  no_stock: boolean;
+}
+
+type ComboData = Record<string, ComboItem>;
 
 interface Message {
   role: "user" | "assistant";
   text: string;
-  products?: Product[];
+  combo?: ComboData;
 }
+
+// ── Helpers ────────────────────────────────────────────────
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat("es-AR", {
@@ -30,12 +51,158 @@ function formatPrice(price: number) {
   }).format(price);
 }
 
-// ── Cart ────────────────────────────────────────────────────
+function renderText(text: string) {
+  return text.split("\n").map((line, i) => {
+    const parts = line.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/);
+    return (
+      <span key={i}>
+        {i > 0 && <br />}
+        {parts.map((part, j) => {
+          if (part.startsWith("**") && part.endsWith("**"))
+            return <strong key={j} className="text-white font-semibold">{part.slice(2, -2)}</strong>;
+          if (part.startsWith("*") && part.endsWith("*"))
+            return <em key={j} className="text-neutral-300 not-italic">{part.slice(1, -1)}</em>;
+          return <span key={j}>{part}</span>;
+        })}
+      </span>
+    );
+  });
+}
+
+// ── Combo Card ────────────────────────────────────────────
+
+function ComboCard({
+  category,
+  item,
+  cartIds,
+  swapping,
+  onSwap,
+  onToggleCart,
+}: {
+  category: string;
+  item: ComboItem;
+  cartIds: Set<string>;
+  swapping: boolean;
+  onSwap: (category: string) => void;
+  onToggleCart: (product: Product) => void;
+}) {
+  const label = CATEGORY_LABELS[category] || category;
+  const product = item.best;
+
+  if (item.no_stock || !product) {
+    return (
+      <div className="flex flex-col rounded-2xl bg-neutral-900 border border-neutral-800 overflow-hidden">
+        <div className="px-4 py-2 bg-neutral-800/50 border-b border-neutral-800">
+          <span className="text-xs text-neutral-400 font-medium uppercase tracking-wide">{label}</span>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-6 text-neutral-600 text-sm">
+          Sin stock disponible
+        </div>
+      </div>
+    );
+  }
+
+  const inCart = cartIds.has(product.id);
+
+  return (
+    <div className="flex flex-col rounded-2xl bg-neutral-900 border border-neutral-800 overflow-hidden hover:border-neutral-700 transition-colors">
+      {/* Category badge */}
+      <div className="px-4 py-2 bg-neutral-800/50 border-b border-neutral-800 flex items-center justify-between">
+        <span className="text-xs text-neutral-400 font-medium uppercase tracking-wide">{label}</span>
+        <span className="text-xs text-neutral-600">{product.merchant_slug}</span>
+      </div>
+
+      {/* Image */}
+      <a href={product.url} target="_blank" rel="noopener noreferrer" className="block relative overflow-hidden bg-neutral-800 aspect-square">
+        <img
+          src={product.primary_image}
+          alt={product.name}
+          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+        />
+      </a>
+
+      {/* Info */}
+      <div className="p-3 flex-1 flex flex-col gap-2">
+        <p className="text-sm text-white font-medium leading-snug line-clamp-2">{product.name}</p>
+        <p className="text-sm font-semibold text-white">{formatPrice(product.price)}</p>
+
+        {/* Actions */}
+        <div className="flex gap-2 mt-auto pt-1">
+          <a
+            href={product.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 text-center text-xs bg-white text-black font-semibold py-1.5 rounded-lg hover:bg-neutral-200 transition-colors"
+          >
+            Ver →
+          </a>
+          <button
+            onClick={() => onSwap(category)}
+            disabled={swapping}
+            className="flex-1 text-xs border border-neutral-700 text-neutral-300 py-1.5 rounded-lg hover:border-neutral-500 hover:text-white transition-colors disabled:opacity-40"
+          >
+            {swapping ? "..." : "Cambiar ↺"}
+          </button>
+          <button
+            onClick={() => onToggleCart(product)}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0 ${
+              inCart ? "bg-white text-black" : "border border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-white"
+            }`}
+          >
+            {inCart ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+              </svg>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Combo Grid ────────────────────────────────────────────
+
+function ComboGrid({
+  combo,
+  cartIds,
+  swappingCats,
+  onSwap,
+  onToggleCart,
+}: {
+  combo: ComboData;
+  cartIds: Set<string>;
+  swappingCats: Set<string>;
+  onSwap: (category: string) => void;
+  onToggleCart: (product: Product) => void;
+}) {
+  const entries = Object.entries(combo);
+  return (
+    <div className="ml-10 mt-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
+      {entries.map(([cat, item]) => (
+        <ComboCard
+          key={cat}
+          category={cat}
+          item={item}
+          cartIds={cartIds}
+          swapping={swappingCats.has(cat)}
+          onSwap={onSwap}
+          onToggleCart={onToggleCart}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ── Cart ──────────────────────────────────────────────────
 
 function Cart({ items, onRemove }: { items: Product[]; onRemove: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const total = items.reduce((sum, p) => sum + p.price, 0);
-
   if (items.length === 0) return null;
 
   return (
@@ -77,7 +244,6 @@ function Cart({ items, onRemove }: { items: Product[]; onRemove: (id: string) =>
           </div>
         </div>
       )}
-
       <button
         onClick={() => setOpen(!open)}
         className="ml-auto flex items-center gap-2 bg-white text-black text-sm font-semibold px-4 py-2.5 rounded-full shadow-lg hover:bg-neutral-200 transition-colors"
@@ -92,153 +258,33 @@ function Cart({ items, onRemove }: { items: Product[]; onRemove: (id: string) =>
   );
 }
 
-// ── Product Card ────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────
 
-function ProductCard({
-  product,
-  selected,
-  onToggle,
-}: {
-  product: Product;
-  selected: boolean;
-  onToggle: (product: Product) => void;
-}) {
-  return (
-    <div className={`group flex-shrink-0 w-44 bg-neutral-900 rounded-xl overflow-hidden border transition-all ${selected ? "border-white" : "border-neutral-800 hover:border-neutral-600"}`}>
-      <div className="relative w-full h-44 overflow-hidden bg-neutral-800">
-        <a href={product.url} target="_blank" rel="noopener noreferrer">
-          <img
-            src={product.primary_image}
-            alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-        </a>
-        <button
-          onClick={() => onToggle(product)}
-          className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center transition-all shadow-md ${
-            selected
-              ? "bg-white text-black"
-              : "bg-black/50 text-white hover:bg-black/80"
-          }`}
-        >
-          {selected ? (
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-              <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          ) : (
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-              <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-            </svg>
-          )}
-        </button>
-      </div>
-      <div className="p-3">
-        <p className="text-xs text-neutral-400 uppercase tracking-wide mb-1">{product.merchant_slug}</p>
-        <p className="text-sm text-white font-medium leading-snug line-clamp-2 mb-2">{product.name}</p>
-        <p className="text-sm font-semibold text-white">{formatPrice(product.price)}</p>
-      </div>
-    </div>
-  );
-}
-
-// ── Product Carousel ────────────────────────────────────────
-
-function ProductCarousel({
-  products,
-  cartIds,
-  onToggle,
-}: {
-  products: Product[];
-  cartIds: Set<string>;
-  onToggle: (product: Product) => void;
-}) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  function scroll(dir: "left" | "right") {
-    if (!scrollRef.current) return;
-    scrollRef.current.scrollBy({ left: dir === "right" ? 200 : -200, behavior: "smooth" });
-  }
-
-  return (
-    <div className="ml-10 relative group/carousel">
-      <button
-        onClick={() => scroll("left")}
-        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10 w-7 h-7 bg-neutral-700 hover:bg-neutral-600 rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-          <path d="M15 18L9 12L15 6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
-
-      <div ref={scrollRef} className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-        {products.map((p) => (
-          <ProductCard
-            key={p.id}
-            product={p}
-            selected={cartIds.has(p.id)}
-            onToggle={onToggle}
-          />
-        ))}
-      </div>
-
-      <button
-        onClick={() => scroll("right")}
-        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10 w-7 h-7 bg-neutral-700 hover:bg-neutral-600 rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-          <path d="M9 18L15 12L9 6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
-    </div>
-  );
-}
-
-// ── Assistant Message ───────────────────────────────────────
-
-function AssistantMessage({
-  message,
-  cartIds,
-  onToggle,
-}: {
-  message: Message;
-  cartIds: Set<string>;
-  onToggle: (product: Product) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex gap-3 items-start">
-        <div className="w-7 h-7 rounded-full bg-white flex-shrink-0 flex items-center justify-center mt-0.5">
-          <span className="text-black text-xs font-bold">S</span>
-        </div>
-        <p className="text-neutral-200 text-sm leading-relaxed pt-1">{message.text}</p>
-      </div>
-      {message.products && message.products.length > 0 && (
-        <ProductCarousel products={message.products} cartIds={cartIds} onToggle={onToggle} />
-      )}
-    </div>
-  );
-}
-
-// ── Main ────────────────────────────────────────────────────
-
-export default function Home() {
+export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      text: "Hola, soy Stockfish. Contame qué estilo de decoración estás buscando y te muestro productos reales que pueden quedar bien en tu espacio.",
+      text: "Hola, soy Stockfish. Contame qué estilo de decoración estás buscando y te armo un combo de productos reales para tu espacio.",
     },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [cart, setCart] = useState<Product[]>([]);
+  const [combo, setCombo] = useState<ComboData>({});
+  const [swappingCats, setSwappingCats] = useState<Set<string>>(new Set());
+  const [shownIds, setShownIds] = useState<Record<string, string[]>>({});
+  const [context, setContext] = useState<{ style_keywords: string[]; style_tags: string[]; budget_total: number | null }>({
+    style_keywords: [], style_tags: [], budget_total: null,
+  });
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const cartIds = new Set(cart.map((p) => p.id));
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, loading]);
 
   function toggleCart(product: Product) {
     setCart((prev) =>
@@ -246,10 +292,6 @@ export default function Home() {
         ? prev.filter((p) => p.id !== product.id)
         : [...prev, product]
     );
-  }
-
-  function removeFromCart(id: string) {
-    setCart((prev) => prev.filter((p) => p.id !== id));
   }
 
   async function sendMessage() {
@@ -267,21 +309,120 @@ export default function Home() {
         body: JSON.stringify({ message: text, session_id: sessionId }),
       });
 
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
+
       setSessionId(data.session_id);
 
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: data.reply, products: data.products },
-      ]);
+      if (data.context) setContext(data.context);
+
+      if (data.step === "interactive" && data.combo) {
+        const newCombo: ComboData = data.combo;
+        setCombo(newCombo);
+
+        // Registrar IDs ya mostrados por categoría
+        const ids: Record<string, string[]> = {};
+        for (const [cat, item] of Object.entries(newCombo)) {
+          const shown: string[] = [];
+          if (item.best?.id) shown.push(String(item.best.id));
+          if (item.alternative?.id) shown.push(String(item.alternative.id));
+          ids[cat] = shown;
+        }
+        setShownIds(ids);
+
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", text: data.reply, combo: newCombo },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", text: data.reply },
+        ]);
+      }
     } catch {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", text: "Hubo un error al conectar con el servidor. Verificá que la API esté corriendo." },
+        { role: "assistant", text: "Hubo un error al conectar con el servidor. Intentá de nuevo." },
       ]);
     } finally {
       setLoading(false);
       inputRef.current?.focus();
+    }
+  }
+
+  async function handleSwap(category: string) {
+    if (!sessionId) return;
+    setSwappingCats((prev) => new Set(prev).add(category));
+
+    try {
+      const excluded = shownIds[category] || [];
+      const res = await fetch(`${AGENTS_URL}/swap`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          category,
+          excluded_ids: excluded,
+          budget_max: context.budget_total
+            ? context.budget_total * 0.5  // rough per-category cap
+            : null,
+        }),
+      });
+
+      if (!res.ok) throw new Error();
+      const data: { product: Product | null } = await res.json();
+
+      if (data.product) {
+        const newProduct = data.product;
+
+        // Update combo state
+        setCombo((prev) => ({
+          ...prev,
+          [category]: { best: newProduct, alternative: null, no_stock: false },
+        }));
+
+        // Track shown ID
+        setShownIds((prev) => ({
+          ...prev,
+          [category]: [...(prev[category] || []), String(newProduct.id)],
+        }));
+
+        // Update combo in last message that has a combo
+        setMessages((prev) => {
+          const updated = [...prev];
+          for (let i = updated.length - 1; i >= 0; i--) {
+            if (updated[i].combo) {
+              updated[i] = {
+                ...updated[i],
+                combo: {
+                  ...updated[i].combo!,
+                  [category]: { best: newProduct, alternative: null, no_stock: false },
+                },
+              };
+              break;
+            }
+          }
+          return updated;
+        });
+      } else {
+        // No more options - notify
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", text: `No encontré más opciones para ${CATEGORY_LABELS[category] || category}. Probá cambiando el estilo o el presupuesto.` },
+        ]);
+      }
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "No pude buscar una alternativa. Intentá de nuevo." },
+      ]);
+    } finally {
+      setSwappingCats((prev) => {
+        const next = new Set(prev);
+        next.delete(category);
+        return next;
+      });
     }
   }
 
@@ -302,10 +443,28 @@ export default function Home() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-hide">
-        <div className="max-w-2xl mx-auto space-y-6">
+        <div className="max-w-3xl mx-auto space-y-6">
           {messages.map((msg, i) =>
             msg.role === "assistant" ? (
-              <AssistantMessage key={i} message={msg} cartIds={cartIds} onToggle={toggleCart} />
+              <div key={i} className="flex flex-col gap-3">
+                <div className="flex gap-3 items-start">
+                  <div className="w-7 h-7 rounded-full bg-white flex-shrink-0 flex items-center justify-center mt-0.5">
+                    <span className="text-black text-xs font-bold">S</span>
+                  </div>
+                  <p className="text-neutral-200 text-sm leading-relaxed pt-1">
+                    {renderText(msg.text)}
+                  </p>
+                </div>
+                {msg.combo && Object.keys(msg.combo).length > 0 && (
+                  <ComboGrid
+                    combo={msg.combo}
+                    cartIds={cartIds}
+                    swappingCats={swappingCats}
+                    onSwap={handleSwap}
+                    onToggleCart={toggleCart}
+                  />
+                )}
+              </div>
             ) : (
               <div key={i} className="flex justify-end">
                 <div className="bg-neutral-800 text-white text-sm px-4 py-2.5 rounded-2xl rounded-tr-sm max-w-xs">
@@ -334,7 +493,7 @@ export default function Home() {
 
       {/* Input */}
       <div className="px-4 pb-6 pt-2">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-3xl mx-auto">
           <div className="flex items-end gap-3 bg-neutral-900 border border-neutral-700 rounded-2xl px-4 py-3 focus-within:border-neutral-500 transition-colors">
             <textarea
               ref={inputRef}
@@ -366,8 +525,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Cart */}
-      <Cart items={cart} onRemove={removeFromCart} />
+      <Cart items={cart} onRemove={(id) => setCart((p) => p.filter((x) => x.id !== id))} />
     </div>
   );
 }

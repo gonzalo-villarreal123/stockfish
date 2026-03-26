@@ -1,20 +1,25 @@
 """
 API FastAPI de Stockfish.
-Expone el agente LangGraph como endpoints HTTP.
+Flujo: intake → clarificación → combo search → swap
 """
 import os
 import uuid
+import json
+import anthropic
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict
 from dotenv import load_dotenv
-from graph import run_design_session
+from graph import (
+    run_intake, run_combo_search, swap_product,
+    CATEGORY_LABELS, run_design_session
+)
 from db import create_session, get_session, update_session, get_session_by_token
 
 load_dotenv()
 
-app = FastAPI(title="Stockfish API", version="0.1.0")
+app = FastAPI(title="Stockfish API", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,6 +27,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+anthropic_client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+# ── Sesiones en memoria ────────────────────────────────────
+# { session_id: { step, raw_intent, style_keywords, style_tags, budget_total, combo, selected_categories } }
+_sessions: Dict[str, dict] = {}
 
 
 # ── Schemas ────────────────────────────────────────────────
@@ -31,115 +42,256 @@ class ChatMessage(BaseModel):
     session_id: Optional[str] = None
 
 
-class ProductResult(BaseModel):
-    id: str
-    name: str
-    price: float
-    primary_image: str
-    url: str
+class SwapRequest(BaseModel):
+    session_id: str
     category: str
-    merchant_slug: str
-    similarity: float
-    rank: int
+    excluded_ids: List[str]
+    budget_max: Optional[float] = None
 
 
 class ChatResponse(BaseModel):
     session_id: str
     reply: str
-    products: List[dict] = []
+    combo: Dict[str, dict] = {}
+    step: str          # "clarifying" | "interactive" | "error"
     status: str
+    context: dict = {} # keywords/tags/budget para el cliente
+
+
+class SwapResponse(BaseModel):
+    product: Optional[dict]
+
+
+# ── Helpers ────────────────────────────────────────────────
+
+def build_clarification_question(intake_result: dict) -> str:
+    style = ", ".join(intake_result.get("style_tags", [])) or "tu estilo"
+    budget = intake_result.get("budget_total")
+
+    categories_list = "\n".join(
+        f"• {label} ({slug})" for slug, label in CATEGORY_LABELS.items()
+    )
+
+    budget_line = (
+        f"Detecté un presupuesto de **${budget:,.0f} ARS**. ¿Es correcto?"
+        if budget
+        else "¿Tenés un presupuesto total en mente? (por ejemplo: *500.000 ARS* o *1 millón*)"
+    )
+
+    return (
+        f"¡Perfecto! Capturo un estilo **{style}**.\n\n"
+        f"Para armar tu combo personalizado, elegí las categorías que querés incluir:\n\n"
+        f"{categories_list}\n\n"
+        f"Podés escribir algo como: *«mueble, lámpara y textil»* o *«quiero todo»*.\n\n"
+        f"{budget_line}"
+    )
+
+
+async def parse_clarification(message: str) -> dict:
+    """Usa Claude para extraer categorías y presupuesto del mensaje de clarificación."""
+    slugs = list(CATEGORY_LABELS.keys())
+    prompt = f"""El usuario está eligiendo categorías de decoración y presupuesto.
+
+Mensaje: "{message}"
+
+Slugs disponibles: {', '.join(slugs)}
+
+Respondé ÚNICAMENTE con JSON válido:
+{{
+  "categories": ["slugs elegidos de la lista"],
+  "budget": null
+}}
+
+Reglas:
+- Si dice "todo" o "todas", incluí todos los slugs disponibles
+- budget: número en ARS si menciona presupuesto, null si no
+- Solo devolvé el JSON, sin texto adicional"""
+
+    try:
+        response = anthropic_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return json.loads(response.content[0].text.strip())
+    except Exception:
+        # Fallback: keyword matching
+        msg = message.lower()
+        categories = []
+        for slug in slugs:
+            label = CATEGORY_LABELS[slug].lower()
+            if slug in msg or label in msg:
+                categories.append(slug)
+        if not categories or "todo" in msg or "todas" in msg:
+            categories = slugs
+        return {"categories": categories, "budget": None}
+
+
+def build_combo_reply(combo: dict, style_tags: list) -> str:
+    style = ", ".join(style_tags) if style_tags else "tu estilo"
+    found = [cat for cat, data in combo.items() if not data.get("no_stock")]
+    no_stock = [cat for cat, data in combo.items() if data.get("no_stock")]
+
+    parts = [f"Armé tu combo **{style}** con {len(found)} categoría(s):"]
+
+    for cat in found:
+        product = combo[cat]["best"]
+        label = CATEGORY_LABELS.get(cat, cat)
+        price = f"${product['price']:,.0f}" if product.get("price") else ""
+        parts.append(f"• **{label}**: {product['name']} {price}")
+
+    if no_stock:
+        no_stock_labels = [CATEGORY_LABELS.get(c, c) for c in no_stock]
+        parts.append(f"\n⚠️ Sin stock por ahora: {', '.join(no_stock_labels)}")
+
+    parts.append("\n¿Querés cambiar algún producto? Podés pedir un *swap* en cualquier categoría.")
+    return "\n".join(parts)
 
 
 # ── Endpoints ──────────────────────────────────────────────
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "stockfish-agents"}
-
-
-NON_SEARCH_TRIGGERS = [
-    "imagen", "foto", "generar", "visualizar", "mostrar cómo queda",
-    "cómo se vería", "render", "composición", "hola", "gracias",
-    "quién sos", "qué sos", "qué podés", "ayuda", "help",
-]
-
-def is_search_intent(message: str) -> bool:
-    msg = message.lower()
-    for trigger in NON_SEARCH_TRIGGERS:
-        if trigger in msg:
-            return False
-    return True
-
-def non_search_reply(message: str) -> str:
-    msg = message.lower()
-    if any(w in msg for w in ["imagen", "foto", "generar", "visualizar", "render", "cómo se vería", "cómo queda"]):
-        return "La visualización de productos en tu espacio es una función que estamos construyendo. Por ahora podés describirme el estilo que buscás y te muestro productos reales disponibles."
-    if any(w in msg for w in ["hola", "buenas", "hey"]):
-        return "¡Hola! Contame qué estilo de decoración estás buscando y te muestro productos reales."
-    if any(w in msg for w in ["gracias", "gracie"]):
-        return "De nada. Si querés explorar más estilos o productos, contame."
-    if any(w in msg for w in ["qué sos", "quién sos", "qué podés", "ayuda", "help"]):
-        return "Soy Stockfish, un asistente de decoración. Describime el estilo que buscás (por ejemplo: 'cuadros abstractos para un living moderno') y te muestro productos reales de tiendas argentinas."
-    return "No entendí bien la consulta. Podés describirme el estilo de decoración que buscás y te muestro productos disponibles."
+    return {"status": "ok", "service": "stockfish-agents", "version": "2.0.0"}
 
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(body: ChatMessage):
     """
-    Endpoint principal del chat.
-    Recibe un mensaje del usuario y devuelve productos relevantes.
+    Endpoint principal del chat. Maneja el flujo multi-paso:
+    intake → clarificación → combo search
     """
     session_id = body.session_id or str(uuid.uuid4())
+    session = _sessions.get(session_id, {})
+    step = session.get("step", "intake")
 
-    # Detectar si es una búsqueda o una pregunta conversacional
-    if not is_search_intent(body.message):
+    # ── Paso 1: Intake ─────────────────────────────────────
+    if step == "intake":
+        intake_result = await run_intake(session_id, body.message)
+
+        _sessions[session_id] = {
+            "step": "awaiting_clarification",
+            "raw_intent": body.message,
+            "style_keywords": intake_result.get("style_keywords", []),
+            "style_tags": intake_result.get("style_tags", []),
+            "budget_total": intake_result.get("budget_total"),
+        }
+
+        reply = build_clarification_question(intake_result)
         return ChatResponse(
             session_id=session_id,
-            reply=non_search_reply(body.message),
-            products=[],
-            status="interactive"
+            reply=reply,
+            step="clarifying",
+            status="clarifying",
+            context={
+                "style_keywords": intake_result.get("style_keywords", []),
+                "style_tags": intake_result.get("style_tags", []),
+                "budget_total": intake_result.get("budget_total"),
+            }
         )
 
-    # Ejecutar el grafo de agentes
-    result = await run_design_session(
-        session_id=session_id,
-        raw_intent=body.message
-    )
+    # ── Paso 2: Clarificación → Combo Search ───────────────
+    elif step == "awaiting_clarification":
+        parsed = await parse_clarification(body.message)
+        categories = parsed.get("categories") or list(CATEGORY_LABELS.keys())
+        budget = parsed.get("budget") or session.get("budget_total")
 
-    if result["status"] == "error":
-        raise HTTPException(status_code=500, detail=result.get("error", "Error interno"))
+        combo_result = await run_combo_search(
+            session_id=session_id,
+            raw_intent=session["raw_intent"],
+            style_keywords=session["style_keywords"],
+            style_tags=session["style_tags"],
+            selected_categories=categories,
+            budget_total=budget,
+        )
 
-    products = result.get("products", [])
-    keywords = result.get("style_keywords", [])
-    style_tags = result.get("style_tags", [])
+        if combo_result.get("status") == "error":
+            return ChatResponse(
+                session_id=session_id,
+                reply="Hubo un error buscando productos. Intentá de nuevo.",
+                step="error",
+                status="error",
+            )
 
-    # Construir respuesta conversacional
-    if products:
-        tags_str = f" con estilo {', '.join(style_tags)}" if style_tags else ""
-        reply = f"Encontré {len(products)} productos{tags_str} que pueden quedar bien. ¿Alguno te llama la atención?"
-    else:
-        reply = "No encontré productos que coincidan exactamente. Probá con otra descripción, por ejemplo: 'cuadro abstracto', 'escultura moderna' o 'espejo decorativo'."
+        combo = combo_result.get("combo", {})
+        _sessions[session_id] = {
+            **session,
+            "step": "interactive",
+            "selected_categories": categories,
+            "budget_total": budget,
+            "combo": combo,
+        }
 
-    # Persistir sesión en Supabase
-    try:
-        await create_session({
-            "id": session_id,
-            "status": result["status"],
-            "style_intent": {
-                "raw_text": body.message,
-                "keywords": keywords,
-                "style_tags": style_tags,
+        reply = build_combo_reply(combo, session.get("style_tags", []))
+        return ChatResponse(
+            session_id=session_id,
+            reply=reply,
+            combo=combo,
+            step="interactive",
+            status="interactive",
+            context={
+                "style_keywords": session.get("style_keywords", []),
+                "style_tags": session.get("style_tags", []),
+                "budget_total": budget,
             }
-        })
-    except Exception:
-        pass  # No es bloqueante si falla el guardado
+        )
 
-    return ChatResponse(
-        session_id=session_id,
-        reply=reply,
-        products=products[:12],
-        status=result["status"]
+    # ── Paso 3: Interactivo → nueva búsqueda si el usuario escribe ─
+    else:
+        # El usuario ya tiene su combo y escribe algo nuevo → reset
+        _sessions[session_id] = {}
+        new_intake = await run_intake(session_id, body.message)
+
+        _sessions[session_id] = {
+            "step": "awaiting_clarification",
+            "raw_intent": body.message,
+            "style_keywords": new_intake.get("style_keywords", []),
+            "style_tags": new_intake.get("style_tags", []),
+            "budget_total": new_intake.get("budget_total"),
+        }
+
+        reply = build_clarification_question(new_intake)
+        return ChatResponse(
+            session_id=session_id,
+            reply=reply,
+            step="clarifying",
+            status="clarifying",
+            context={
+                "style_keywords": new_intake.get("style_keywords", []),
+                "style_tags": new_intake.get("style_tags", []),
+                "budget_total": new_intake.get("budget_total"),
+            }
+        )
+
+
+@app.post("/swap", response_model=SwapResponse)
+async def swap(body: SwapRequest):
+    """
+    Reemplaza el producto de una categoría por la siguiente mejor opción,
+    excluyendo los IDs ya mostrados.
+    """
+    session = _sessions.get(body.session_id, {})
+    style_keywords = session.get("style_keywords", [])
+    style_tags = session.get("style_tags", [])
+
+    product = await swap_product(
+        style_keywords=style_keywords,
+        style_tags=style_tags,
+        category=body.category,
+        excluded_ids=body.excluded_ids,
+        budget_max=body.budget_max,
     )
+
+    # Actualizar combo en sesión
+    if product and "combo" in session:
+        session["combo"][body.category] = {
+            "best": product,
+            "alternative": None,
+            "no_stock": False,
+        }
+        _sessions[body.session_id] = session
+
+    return SwapResponse(product=product)
 
 
 @app.get("/session/{session_id}")
