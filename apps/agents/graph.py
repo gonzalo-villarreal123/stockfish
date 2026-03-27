@@ -93,7 +93,17 @@ def search_by_category(embedding_str: str, category: str, max_price: Optional[fl
             json=payload,
             timeout=15.0
         )
-        r.raise_for_status()
+        if not r.is_success:
+            # Si falla con max_price, reintenta sin filtro de precio
+            if "max_price" in payload:
+                payload_no_price = {k: v for k, v in payload.items() if k != "max_price"}
+                r = client.post(
+                    f"{SUPABASE_URL}/rest/v1/rpc/search_products",
+                    headers=HEADERS,
+                    json=payload_no_price,
+                    timeout=15.0
+                )
+            r.raise_for_status()
         products = r.json()
 
     # Excluir IDs ya mostrados
