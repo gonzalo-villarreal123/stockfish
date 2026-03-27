@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Dict
 from dotenv import load_dotenv
-from graph import run_intake, run_combo_search, swap_product
+from graph import run_intake, run_combo_search, swap_product, generic_search_by_category
 from db import create_session, get_session, update_session, get_session_by_token, get_product_categories
 
 load_dotenv()
@@ -271,6 +271,14 @@ async def swap(body: SwapRequest):
         excluded_ids=body.excluded_ids,
         budget_max=body.budget_max,
     )
+
+    # Fallback genérico si no hay resultado con el estilo
+    if not product:
+        product = await generic_search_by_category(
+            category=body.category,
+            excluded_ids=body.excluded_ids,
+            budget_max=body.budget_max,
+        )
 
     if product and "combo" in session:
         session["combo"][body.category] = {

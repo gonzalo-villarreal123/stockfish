@@ -297,6 +297,26 @@ async def run_design_session(session_id: str, raw_intent: str) -> dict:
         result = await loop.run_in_executor(pool, design_graph.invoke, state)
     return result
 
+async def generic_search_by_category(category: str, excluded_ids: List[str] = None,
+                                      budget_max: Optional[float] = None) -> Optional[dict]:
+    """Búsqueda de fallback: devuelve cualquier producto disponible de la categoría,
+    sin filtro de estilo. Útil cuando no hay más opciones que coincidan con el estilo."""
+    query_text = CATEGORY_LABELS.get(category, category)
+    try:
+        embedding = get_embedding(query_text)
+        embedding_str = embedding_to_str(embedding)
+        products = search_by_category(
+            embedding_str, category,
+            max_price=budget_max,
+            limit=1,
+            exclude_ids=excluded_ids or []
+        )
+        return products[0] if products else None
+    except Exception as e:
+        print(f"[GenericSearch] Error: {e}")
+        return None
+
+
 async def swap_product(style_keywords: List[str], style_tags: List[str],
                         category: str, excluded_ids: List[str],
                         budget_max: Optional[float] = None) -> Optional[dict]:
