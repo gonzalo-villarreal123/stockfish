@@ -158,7 +158,7 @@ def build_combo_reply(combo: dict, style_tags: list) -> str:
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "stockfish-agents", "version": "2.1.0"}
+    return {"status": "ok", "service": "stockfish-agents", "version": "3.0.0"}
 
 
 @app.get("/categories")
