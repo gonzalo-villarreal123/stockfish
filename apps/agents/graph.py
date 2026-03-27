@@ -78,13 +78,14 @@ def embedding_to_str(embedding: list) -> str:
 def search_by_category(embedding_str: str, category: str, max_price: Optional[float] = None,
                         limit: int = 3, exclude_ids: List[str] = None) -> list:
     """Busca productos en Supabase para una categoría específica."""
+    # Pedimos más resultados para tener margen al filtrar por precio y excluir IDs
+    fetch_limit = (limit + (len(exclude_ids) if exclude_ids else 0)) * 3
+
     payload = {
         "query_embedding": embedding_str,
         "category_filter": category,
-        "limit_n": limit + (len(exclude_ids) if exclude_ids else 0),
+        "limit_n": fetch_limit,
     }
-    if max_price:
-        payload["max_price"] = max_price
 
     with httpx.Client() as client:
         r = client.post(
@@ -93,18 +94,12 @@ def search_by_category(embedding_str: str, category: str, max_price: Optional[fl
             json=payload,
             timeout=15.0
         )
-        if not r.is_success:
-            # Si falla con max_price, reintenta sin filtro de precio
-            if "max_price" in payload:
-                payload_no_price = {k: v for k, v in payload.items() if k != "max_price"}
-                r = client.post(
-                    f"{SUPABASE_URL}/rest/v1/rpc/search_products",
-                    headers=HEADERS,
-                    json=payload_no_price,
-                    timeout=15.0
-                )
-            r.raise_for_status()
+        r.raise_for_status()
         products = r.json()
+
+    # Filtrar por precio en Python (evita depender del RPC para esto)
+    if max_price:
+        products = [p for p in products if p.get("price", 0) <= max_price]
 
     # Excluir IDs ya mostrados
     if exclude_ids:
