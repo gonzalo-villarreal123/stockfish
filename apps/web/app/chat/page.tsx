@@ -45,6 +45,7 @@ interface Message {
   role: "user" | "assistant";
   text: string;
   combo?: ComboData;
+  feedbackCategory?: string;
 }
 
 // ── Helpers ────────────────────────────────────────────────
@@ -272,6 +273,69 @@ function ComboCard({
   );
 }
 
+// ── Feedback Prompt ────────────────────────────────────────
+
+function FeedbackPrompt({
+  category,
+  sessionId,
+  agentsUrl,
+  onDone,
+}: {
+  category: string;
+  sessionId: string | null;
+  agentsUrl: string;
+  onDone: () => void;
+}) {
+  const [text, setText] = useState("");
+  const [sent, setSent] = useState(false);
+  const label = CATEGORY_LABELS[category] || category;
+
+  async function submit() {
+    if (!text.trim()) return;
+    await fetch(`${agentsUrl}/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId, category, text: text.trim() }),
+    }).catch(() => {});
+    setSent(true);
+    onDone();
+  }
+
+  if (sent) {
+    return (
+      <p className="ml-10 mt-2 text-sm text-neutral-400">
+        ¡Gracias! Vamos a salir a buscarlo. 🙌
+      </p>
+    );
+  }
+
+  return (
+    <div className="ml-10 mt-3 max-w-sm">
+      <p className="text-sm text-neutral-400 mb-3">
+        Recorrimos todo el catálogo de <strong className="text-white">{label}</strong>. ¿Qué producto estabas buscando exactamente? Nos ayudás a conseguirlo.
+      </p>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && submit()}
+          placeholder="Ej: sillón esquinero gris oscuro..."
+          className="flex-1 bg-neutral-900 border border-neutral-700 text-white text-sm px-3 py-2 rounded-xl placeholder-neutral-600 outline-none focus:border-neutral-500"
+        />
+        <button
+          onClick={submit}
+          disabled={!text.trim()}
+          className="bg-white text-black text-sm font-semibold px-4 py-2 rounded-xl disabled:opacity-30 hover:bg-neutral-200 transition-colors"
+        >
+          Enviar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
 // ── Combo Carousel ─────────────────────────────────────────
 
 function ComboCarousel({
@@ -411,6 +475,8 @@ export default function ChatPage() {
   const [cart, setCart] = useState<Product[]>([]);
   const [swappingCats, setSwappingCats] = useState<Set<string>>(new Set());
   const [shownIds, setShownIds] = useState<Record<string, string[]>>({});
+  const [swapCount, setSwapCount] = useState<Record<string, number>>({});
+  const SWAP_LIMIT = 5;
   const [context, setContext] = useState<{
     style_keywords: string[];
     style_tags: string[];
@@ -454,8 +520,12 @@ export default function ChatPage() {
 
       setMessages((prev) => [...prev, { role: "assistant", text: data.reply }]);
 
-      if (data.step === "clarifying" && data.context?.available_groups) {
-        // Fetch group metadata from /categories
+      if (data.step === "budget_only" && data.context?.pre_selected_groups) {
+        // Categorías ya detectadas → ir directo al presupuesto
+        setSelectedGroups(data.context.pre_selected_groups);
+        setWidgetStep("budget");
+      } else if (data.step === "clarifying" && data.context?.available_groups) {
+        // Mostrar chips de categorías
         const catRes = await fetch(`${AGENTS_URL}/categories`);
         const allGroups: CategoryGroup[] = await catRes.json();
         const filtered = allGroups.filter((g) =>
@@ -542,6 +612,18 @@ export default function ChatPage() {
 
   async function handleSwap(category: string) {
     if (!sessionId) return;
+
+    const currentCount = swapCount[category] || 0;
+
+    // Si ya alcanzó el límite → mostrar feedback directamente
+    if (currentCount >= SWAP_LIMIT) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "", feedbackCategory: category },
+      ]);
+      return;
+    }
+
     setSwappingCats((prev) => new Set(prev).add(category));
 
     try {
@@ -560,14 +642,15 @@ export default function ChatPage() {
       if (!res.ok) throw new Error();
       const data: { product: Product | null } = await res.json();
 
+      const newCount = currentCount + 1;
+      setSwapCount((prev) => ({ ...prev, [category]: newCount }));
+
       if (data.product) {
         const newProduct = data.product;
-
         setShownIds((prev) => ({
           ...prev,
           [category]: [...(prev[category] || []), String(newProduct.id)],
         }));
-
         setMessages((prev) => {
           const updated = [...prev];
           for (let i = updated.length - 1; i >= 0; i--) {
@@ -585,9 +668,10 @@ export default function ChatPage() {
           return updated;
         });
       } else {
+        // Sin más stock → feedback inmediato
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", text: `No encontré más opciones para ${CATEGORY_LABELS[category] || category}. Probá con otro estilo.` },
+          { role: "assistant", text: "", feedbackCategory: category },
         ]);
       }
     } catch {
@@ -631,10 +715,20 @@ export default function ChatPage() {
                   <div className="w-7 h-7 rounded-full bg-white flex-shrink-0 flex items-center justify-center mt-0.5">
                     <span className="text-black text-xs font-bold">S</span>
                   </div>
-                  <p className="text-neutral-200 text-sm leading-relaxed pt-1">
-                    {renderText(msg.text)}
-                  </p>
+                  {msg.text && (
+                    <p className="text-neutral-200 text-sm leading-relaxed pt-1">
+                      {renderText(msg.text)}
+                    </p>
+                  )}
                 </div>
+                {msg.feedbackCategory && (
+                  <FeedbackPrompt
+                    category={msg.feedbackCategory}
+                    sessionId={sessionId}
+                    agentsUrl={AGENTS_URL}
+                    onDone={() => {}}
+                  />
+                )}
                 {msg.combo && Object.keys(msg.combo).length > 0 && (
                   <ComboCarousel
                     combo={msg.combo}

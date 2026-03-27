@@ -83,6 +83,12 @@ class SwapRequest(BaseModel):
     budget_max: Optional[float] = None
 
 
+class FeedbackRequest(BaseModel):
+    session_id: Optional[str] = None
+    category: str
+    text: str
+
+
 class ChatResponse(BaseModel):
     session_id: str
     reply: str
@@ -165,6 +171,10 @@ async def chat(body: ChatMessage):
     if step == "intake" or step == "awaiting_clarification":
         intake_result = await run_intake(session_id, body.message)
         available_groups = await get_available_groups()
+        detected_groups = [
+            g for g in intake_result.get("category_groups", [])
+            if g in CATEGORY_GROUPS and g in available_groups
+        ]
 
         _sessions[session_id] = {
             "step": "awaiting_clarification",
@@ -172,11 +182,28 @@ async def chat(body: ChatMessage):
             "style_keywords": intake_result.get("style_keywords", []),
             "style_tags": intake_result.get("style_tags", []),
             "budget_total": intake_result.get("budget_total"),
+            "pre_selected_groups": detected_groups,
         }
 
         style = ", ".join(intake_result.get("style_tags", [])) or "tu estilo"
-        reply = f"¡Perfecto! Capturo un estilo **{style}**.\n\nElegí qué categorías querés incluir en tu combo:"
 
+        if detected_groups:
+            group_labels = " y ".join(CATEGORY_GROUPS[g]["label"] for g in detected_groups)
+            reply = f"¡Perfecto! Busco **{group_labels}** con estilo **{style}**.\n\n¿Tenés un presupuesto en mente?"
+            return ChatResponse(
+                session_id=session_id,
+                reply=reply,
+                step="budget_only",
+                status="clarifying",
+                context={
+                    "style_keywords": intake_result.get("style_keywords", []),
+                    "style_tags": intake_result.get("style_tags", []),
+                    "budget_total": intake_result.get("budget_total"),
+                    "pre_selected_groups": detected_groups,
+                }
+            )
+
+        reply = f"¡Perfecto! Capturo un estilo **{style}**.\n\nElegí qué categorías querés incluir en tu combo:"
         return ChatResponse(
             session_id=session_id,
             reply=reply,
@@ -289,6 +316,16 @@ async def swap(body: SwapRequest):
         _sessions[body.session_id] = session
 
     return SwapResponse(product=product)
+
+
+@app.post("/feedback")
+async def feedback(body: FeedbackRequest):
+    """Recibe feedback del usuario cuando no encuentra lo que busca en una categoría."""
+    from graph import CATEGORY_LABELS
+    label = CATEGORY_LABELS.get(body.category, body.category)
+    print(f"[Feedback] Categoría: {label} | Texto: {body.text} | Sesión: {body.session_id}")
+    # TODO: persistir en Supabase (tabla search_feedback)
+    return {"ok": True}
 
 
 @app.get("/session/{session_id}")

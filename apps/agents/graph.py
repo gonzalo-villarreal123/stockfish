@@ -115,7 +115,7 @@ def intake_node(state: DesignState) -> DesignState:
     """Parsea el intent del usuario con Claude. Extrae keywords, estilo y presupuesto."""
     print(f"[IntakeAgent] Procesando: '{state['raw_intent']}'")
 
-    prompt = f"""Analizá esta descripción de estilo de decoración y extraé información estructurada.
+    prompt = f"""Analizá esta descripción de decoración y extraé información estructurada.
 
 Descripción: "{state['raw_intent']}"
 
@@ -123,12 +123,19 @@ Respondé ÚNICAMENTE con JSON válido:
 {{
   "keywords": ["3 a 8 términos específicos para buscar productos"],
   "style_tags": ["estilos identificados"],
-  "budget_total": null
+  "budget_total": null,
+  "category_groups": []
 }}
 
 - keywords: términos para buscar (ej: "madera natural", "lámpara colgante", "textil beige")
 - style_tags: estilos (ej: "nórdico", "minimalista", "industrial", "bohemio")
 - budget_total: presupuesto total en ARS si se menciona, null si no
+- category_groups: grupos mencionados EXPLÍCITAMENTE por el usuario. Solo incluir si el usuario nombra categorías concretas.
+  Valores posibles: "muebles", "textiles", "iluminacion", "arte", "decoracion"
+  Ejemplos:
+    "quiero cuadros de arte para mi living" → ["arte"]
+    "busco iluminación y textiles" → ["iluminacion", "textiles"]
+    "quiero un living nórdico moderno" → []  (estilo general, sin categorías explícitas)
 
 Solo el JSON, sin texto adicional."""
 
@@ -146,6 +153,7 @@ Solo el JSON, sin texto adicional."""
             "style_keywords": parsed.get("keywords", []),
             "style_tags": parsed.get("style_tags", []),
             "budget_total": parsed.get("budget_total"),
+            "category_groups": parsed.get("category_groups", []),
         }
     except Exception as e:
         print(f"[IntakeAgent] Error (usando fallback): {e}")
@@ -155,6 +163,7 @@ Solo el JSON, sin texto adicional."""
             "style_keywords": [state["raw_intent"]],
             "style_tags": [],
             "budget_total": None,
+            "category_groups": [],
         }
 
 
