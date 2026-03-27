@@ -26,6 +26,20 @@ def rpc(fn: str) -> str:
 
 # ── Merchants ──────────────────────────────────────────────
 
+async def get_product_categories() -> list:
+    """Devuelve las categorías únicas que tienen al menos un producto en stock."""
+    async with httpx.AsyncClient() as client:
+        r = await client.get(
+            rest("products"),
+            headers=HEADERS,
+            params={"select": "category", "in_stock": "eq.true"}
+        )
+        r.raise_for_status()
+        data = r.json()
+    categories = list({p["category"] for p in data if p.get("category")})
+    return categories
+
+
 async def get_merchants():
     async with httpx.AsyncClient() as client:
         r = await client.get(rest("merchants"), headers=HEADERS, params={"active": "eq.true"})

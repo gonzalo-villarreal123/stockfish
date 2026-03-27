@@ -10,12 +10,12 @@ const CATEGORY_LABELS: Record<string, string> = {
   lampara:   "Iluminación",
   cuadro:    "Arte",
   florero:   "Decoración",
-  escultura: "Esculturas",
-  espejo:    "Espejos",
-  planta:    "Plantas",
+  escultura: "Decoración",
+  espejo:    "Decoración",
+  planta:    "Decoración",
 };
 
-// ── Types ─────────────────────────────────────────────────
+// ── Types ──────────────────────────────────────────────────
 
 interface Product {
   id: string;
@@ -34,6 +34,12 @@ interface ComboItem {
 }
 
 type ComboData = Record<string, ComboItem>;
+
+interface CategoryGroup {
+  id: string;
+  label: string;
+  emoji: string;
+}
 
 interface Message {
   role: "user" | "assistant";
@@ -69,7 +75,110 @@ function renderText(text: string) {
   });
 }
 
-// ── Combo Card ────────────────────────────────────────────
+// ── Category Chips ─────────────────────────────────────────
+
+function CategoryChips({
+  groups,
+  onNext,
+}: {
+  groups: CategoryGroup[];
+  onNext: (selected: string[]) => void;
+}) {
+  const [selected, setSelected] = useState<string[]>([]);
+
+  function toggle(id: string) {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  return (
+    <div className="ml-10 mt-3">
+      <div className="flex flex-wrap gap-2 mb-4">
+        {groups.map((g) => {
+          const active = selected.includes(g.id);
+          return (
+            <button
+              key={g.id}
+              onClick={() => toggle(g.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all ${
+                active
+                  ? "bg-white text-black border-white"
+                  : "border-neutral-700 text-neutral-300 hover:border-neutral-500 hover:text-white"
+              }`}
+            >
+              <span>{g.emoji}</span>
+              <span>{g.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      <button
+        onClick={() => onNext(selected)}
+        disabled={selected.length === 0}
+        className="bg-white text-black px-6 py-2 rounded-full text-sm font-semibold disabled:opacity-30 hover:bg-neutral-200 transition-colors"
+      >
+        Siguiente →
+      </button>
+    </div>
+  );
+}
+
+// ── Budget Slider ──────────────────────────────────────────
+
+function BudgetSlider({
+  onConfirm,
+}: {
+  onConfirm: (budget: number | null) => void;
+}) {
+  const [value, setValue] = useState(500000);
+  const [noLimit, setNoLimit] = useState(false);
+
+  return (
+    <div className="ml-10 mt-3 max-w-sm">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm text-neutral-400">Presupuesto total</span>
+        <label className="flex items-center gap-2 text-sm text-neutral-400 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={noLimit}
+            onChange={(e) => setNoLimit(e.target.checked)}
+            className="accent-white w-4 h-4"
+          />
+          Sin límite
+        </label>
+      </div>
+
+      {!noLimit && (
+        <>
+          <p className="text-white text-2xl font-semibold mb-3">{formatPrice(value)}</p>
+          <input
+            type="range"
+            min={50000}
+            max={2000000}
+            step={50000}
+            value={value}
+            onChange={(e) => setValue(Number(e.target.value))}
+            className="w-full accent-white cursor-pointer"
+          />
+          <div className="flex justify-between text-xs text-neutral-600 mt-1 mb-4">
+            <span>$50.000</span>
+            <span>$2.000.000</span>
+          </div>
+        </>
+      )}
+
+      <button
+        onClick={() => onConfirm(noLimit ? null : value)}
+        className="mt-2 bg-white text-black px-6 py-2 rounded-full text-sm font-semibold hover:bg-neutral-200 transition-colors"
+      >
+        Armar mi combo →
+      </button>
+    </div>
+  );
+}
+
+// ── Combo Card ─────────────────────────────────────────────
 
 function ComboCard({
   category,
@@ -106,13 +215,11 @@ function ComboCard({
 
   return (
     <div className="flex flex-col rounded-2xl bg-neutral-900 border border-neutral-800 overflow-hidden hover:border-neutral-700 transition-colors">
-      {/* Category badge */}
       <div className="px-4 py-2 bg-neutral-800/50 border-b border-neutral-800 flex items-center justify-between">
         <span className="text-xs text-neutral-400 font-medium uppercase tracking-wide">{label}</span>
         <span className="text-xs text-neutral-600">{product.merchant_slug}</span>
       </div>
 
-      {/* Image */}
       <a href={product.url} target="_blank" rel="noopener noreferrer" className="block relative overflow-hidden bg-neutral-800 aspect-square">
         <img
           src={product.primary_image}
@@ -121,12 +228,10 @@ function ComboCard({
         />
       </a>
 
-      {/* Info */}
       <div className="p-3 flex-1 flex flex-col gap-2">
         <p className="text-sm text-white font-medium leading-snug line-clamp-2">{product.name}</p>
         <p className="text-sm font-semibold text-white">{formatPrice(product.price)}</p>
 
-        {/* Actions */}
         <div className="flex gap-2 mt-auto pt-1">
           <a
             href={product.url}
@@ -146,7 +251,9 @@ function ComboCard({
           <button
             onClick={() => onToggleCart(product)}
             className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0 ${
-              inCart ? "bg-white text-black" : "border border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-white"
+              inCart
+                ? "bg-white text-black"
+                : "border border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-white"
             }`}
           >
             {inCart ? (
@@ -165,7 +272,7 @@ function ComboCard({
   );
 }
 
-// ── Combo Grid ────────────────────────────────────────────
+// ── Combo Grid ─────────────────────────────────────────────
 
 function ComboGrid({
   combo,
@@ -180,10 +287,9 @@ function ComboGrid({
   onSwap: (category: string) => void;
   onToggleCart: (product: Product) => void;
 }) {
-  const entries = Object.entries(combo);
   return (
     <div className="ml-10 mt-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
-      {entries.map(([cat, item]) => (
+      {Object.entries(combo).map(([cat, item]) => (
         <ComboCard
           key={cat}
           category={cat}
@@ -198,7 +304,7 @@ function ComboGrid({
   );
 }
 
-// ── Cart ──────────────────────────────────────────────────
+// ── Cart ───────────────────────────────────────────────────
 
 function Cart({ items, onRemove }: { items: Product[]; onRemove: (id: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -258,7 +364,7 @@ function Cart({ items, onRemove }: { items: Product[]; onRemove: (id: string) =>
   );
 }
 
-// ── Main ──────────────────────────────────────────────────
+// ── Main ───────────────────────────────────────────────────
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
@@ -271,12 +377,18 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [cart, setCart] = useState<Product[]>([]);
-  const [combo, setCombo] = useState<ComboData>({});
   const [swappingCats, setSwappingCats] = useState<Set<string>>(new Set());
   const [shownIds, setShownIds] = useState<Record<string, string[]>>({});
-  const [context, setContext] = useState<{ style_keywords: string[]; style_tags: string[]; budget_total: number | null }>({
-    style_keywords: [], style_tags: [], budget_total: null,
-  });
+  const [context, setContext] = useState<{
+    style_keywords: string[];
+    style_tags: string[];
+    budget_total: number | null;
+  }>({ style_keywords: [], style_tags: [], budget_total: null });
+
+  // Widget state: which interactive widget to show
+  const [widgetStep, setWidgetStep] = useState<"none" | "categories" | "budget">("none");
+  const [availableGroups, setAvailableGroups] = useState<CategoryGroup[]>([]);
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -284,15 +396,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
-
-  function toggleCart(product: Product) {
-    setCart((prev) =>
-      prev.find((p) => p.id === product.id)
-        ? prev.filter((p) => p.id !== product.id)
-        : [...prev, product]
-    );
-  }
+  }, [messages, loading, widgetStep]);
 
   async function sendMessage() {
     const text = input.trim();
@@ -301,6 +405,7 @@ export default function ChatPage() {
     setInput("");
     setMessages((prev) => [...prev, { role: "user", text }]);
     setLoading(true);
+    setWidgetStep("none");
 
     try {
       const res = await fetch(`${AGENTS_URL}/chat`, {
@@ -313,14 +418,68 @@ export default function ChatPage() {
       const data = await res.json();
 
       setSessionId(data.session_id);
+      if (data.context) setContext(data.context);
+
+      setMessages((prev) => [...prev, { role: "assistant", text: data.reply }]);
+
+      if (data.step === "clarifying" && data.context?.available_groups) {
+        // Fetch group metadata from /categories
+        const catRes = await fetch(`${AGENTS_URL}/categories`);
+        const allGroups: CategoryGroup[] = await catRes.json();
+        const filtered = allGroups.filter((g) =>
+          data.context.available_groups.includes(g.id)
+        );
+        setAvailableGroups(filtered);
+        setWidgetStep("categories");
+      }
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "Hubo un error al conectar con el servidor. Intentá de nuevo." },
+      ]);
+    } finally {
+      setLoading(false);
+      inputRef.current?.focus();
+    }
+  }
+
+  function handleCategoriesNext(selected: string[]) {
+    setSelectedGroups(selected);
+    // Show user selection as message
+    const groupLabels = availableGroups
+      .filter((g) => selected.includes(g.id))
+      .map((g) => `${g.emoji} ${g.label}`)
+      .join(", ");
+    setMessages((prev) => [...prev, { role: "user", text: groupLabels }]);
+    setWidgetStep("budget");
+  }
+
+  async function handleBudgetConfirm(budget: number | null) {
+    if (!sessionId) return;
+
+    const budgetText = budget ? formatPrice(budget) : "Sin límite de presupuesto";
+    setMessages((prev) => [...prev, { role: "user", text: budgetText }]);
+    setWidgetStep("none");
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${AGENTS_URL}/clarify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          selected_groups: selectedGroups,
+          budget_total: budget,
+        }),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
 
       if (data.context) setContext(data.context);
 
       if (data.step === "interactive" && data.combo) {
         const newCombo: ComboData = data.combo;
-        setCombo(newCombo);
-
-        // Registrar IDs ya mostrados por categoría
         const ids: Record<string, string[]> = {};
         for (const [cat, item] of Object.entries(newCombo)) {
           const shown: string[] = [];
@@ -329,7 +488,6 @@ export default function ChatPage() {
           ids[cat] = shown;
         }
         setShownIds(ids);
-
         setMessages((prev) => [
           ...prev,
           { role: "assistant", text: data.reply, combo: newCombo },
@@ -343,11 +501,10 @@ export default function ChatPage() {
     } catch {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", text: "Hubo un error al conectar con el servidor. Intentá de nuevo." },
+        { role: "assistant", text: "Hubo un error armando tu combo. Intentá de nuevo." },
       ]);
     } finally {
       setLoading(false);
-      inputRef.current?.focus();
     }
   }
 
@@ -364,9 +521,7 @@ export default function ChatPage() {
           session_id: sessionId,
           category,
           excluded_ids: excluded,
-          budget_max: context.budget_total
-            ? context.budget_total * 0.5  // rough per-category cap
-            : null,
+          budget_max: context.budget_total,
         }),
       });
 
@@ -376,19 +531,11 @@ export default function ChatPage() {
       if (data.product) {
         const newProduct = data.product;
 
-        // Update combo state
-        setCombo((prev) => ({
-          ...prev,
-          [category]: { best: newProduct, alternative: null, no_stock: false },
-        }));
-
-        // Track shown ID
         setShownIds((prev) => ({
           ...prev,
           [category]: [...(prev[category] || []), String(newProduct.id)],
         }));
 
-        // Update combo in last message that has a combo
         setMessages((prev) => {
           const updated = [...prev];
           for (let i = updated.length - 1; i >= 0; i--) {
@@ -406,10 +553,9 @@ export default function ChatPage() {
           return updated;
         });
       } else {
-        // No more options - notify
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", text: `No encontré más opciones para ${CATEGORY_LABELS[category] || category}. Probá cambiando el estilo o el presupuesto.` },
+          { role: "assistant", text: `No encontré más opciones para ${CATEGORY_LABELS[category] || category}. Probá con otro estilo.` },
         ]);
       }
     } catch {
@@ -432,6 +578,8 @@ export default function ChatPage() {
       sendMessage();
     }
   }
+
+  const inputDisabled = widgetStep !== "none" || loading;
 
   return (
     <div className="flex flex-col h-screen bg-[#0a0a0a]">
@@ -461,7 +609,13 @@ export default function ChatPage() {
                     cartIds={cartIds}
                     swappingCats={swappingCats}
                     onSwap={handleSwap}
-                    onToggleCart={toggleCart}
+                    onToggleCart={(p) =>
+                      setCart((prev) =>
+                        prev.find((x) => x.id === p.id)
+                          ? prev.filter((x) => x.id !== p.id)
+                          : [...prev, p]
+                      )
+                    }
                   />
                 )}
               </div>
@@ -472,6 +626,35 @@ export default function ChatPage() {
                 </div>
               </div>
             )
+          )}
+
+          {/* Widgets inline */}
+          {widgetStep === "categories" && (
+            <div className="flex flex-col gap-3">
+              <div className="flex gap-3 items-start">
+                <div className="w-7 h-7 rounded-full bg-white flex-shrink-0 flex items-center justify-center mt-0.5">
+                  <span className="text-black text-xs font-bold">S</span>
+                </div>
+                <p className="text-neutral-200 text-sm leading-relaxed pt-1">
+                  ¿Qué categorías querés incluir en tu combo?
+                </p>
+              </div>
+              <CategoryChips groups={availableGroups} onNext={handleCategoriesNext} />
+            </div>
+          )}
+
+          {widgetStep === "budget" && (
+            <div className="flex flex-col gap-3">
+              <div className="flex gap-3 items-start">
+                <div className="w-7 h-7 rounded-full bg-white flex-shrink-0 flex items-center justify-center mt-0.5">
+                  <span className="text-black text-xs font-bold">S</span>
+                </div>
+                <p className="text-neutral-200 text-sm leading-relaxed pt-1">
+                  ¿Tenés un presupuesto total en mente?
+                </p>
+              </div>
+              <BudgetSlider onConfirm={handleBudgetConfirm} />
+            </div>
           )}
 
           {loading && (
@@ -494,15 +677,18 @@ export default function ChatPage() {
       {/* Input */}
       <div className="px-4 pb-6 pt-2">
         <div className="max-w-3xl mx-auto">
-          <div className="flex items-end gap-3 bg-neutral-900 border border-neutral-700 rounded-2xl px-4 py-3 focus-within:border-neutral-500 transition-colors">
+          <div className={`flex items-end gap-3 bg-neutral-900 border rounded-2xl px-4 py-3 transition-colors ${
+            inputDisabled ? "border-neutral-800 opacity-40" : "border-neutral-700 focus-within:border-neutral-500"
+          }`}>
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Describí el estilo que buscás..."
+              disabled={inputDisabled}
+              placeholder={widgetStep !== "none" ? "Usá los botones de arriba..." : "Describí el estilo que buscás..."}
               rows={1}
-              className="flex-1 bg-transparent text-white text-sm placeholder-neutral-500 resize-none outline-none leading-relaxed max-h-32 overflow-y-auto scrollbar-hide"
+              className="flex-1 bg-transparent text-white text-sm placeholder-neutral-500 resize-none outline-none leading-relaxed max-h-32 overflow-y-auto scrollbar-hide disabled:cursor-not-allowed"
               onInput={(e) => {
                 const t = e.target as HTMLTextAreaElement;
                 t.style.height = "auto";
@@ -511,7 +697,7 @@ export default function ChatPage() {
             />
             <button
               onClick={sendMessage}
-              disabled={!input.trim() || loading}
+              disabled={!input.trim() || inputDisabled}
               className="flex-shrink-0 w-8 h-8 bg-white rounded-lg flex items-center justify-center disabled:opacity-30 hover:bg-neutral-200 transition-colors"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
