@@ -274,9 +274,11 @@ async def clarify(body: ClarifyRequest):
     )
 
     if combo_result.get("status") == "error":
+        error_detail = combo_result.get("error", "Error desconocido")
+        print(f"[Clarify] Error en combo search: {error_detail}")
         return ChatResponse(
             session_id=body.session_id,
-            reply="Hubo un error buscando productos. Intentá de nuevo.",
+            reply=f"Error interno: {error_detail}",
             step="error",
             status="error",
         )

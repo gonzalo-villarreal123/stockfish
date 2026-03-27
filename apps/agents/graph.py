@@ -187,6 +187,8 @@ def combo_search_node(state: DesignState) -> DesignState:
     query_text = " ".join(keywords)
     if style_tags:
         query_text += " " + " ".join(style_tags)
+    if not query_text.strip():
+        query_text = state.get("raw_intent", "decoración moderna")
 
     print(f"[ComboSearch] Query: '{query_text}' | Categorías: {categories}")
 
