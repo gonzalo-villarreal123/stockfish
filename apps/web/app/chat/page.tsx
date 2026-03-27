@@ -272,9 +272,9 @@ function ComboCard({
   );
 }
 
-// ── Combo Grid ─────────────────────────────────────────────
+// ── Combo Carousel ─────────────────────────────────────────
 
-function ComboGrid({
+function ComboCarousel({
   combo,
   cartIds,
   swappingCats,
@@ -287,19 +287,51 @@ function ComboGrid({
   onSwap: (category: string) => void;
   onToggleCart: (product: Product) => void;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  function scroll(dir: "left" | "right") {
+    scrollRef.current?.scrollBy({ left: dir === "right" ? 220 : -220, behavior: "smooth" });
+  }
+
+  // Filtrar cards sin stock
+  const entries = Object.entries(combo).filter(([, item]) => !item.no_stock && item.best);
+
+  if (entries.length === 0) return null;
+
   return (
-    <div className="ml-10 mt-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
-      {Object.entries(combo).map(([cat, item]) => (
-        <ComboCard
-          key={cat}
-          category={cat}
-          item={item}
-          cartIds={cartIds}
-          swapping={swappingCats.has(cat)}
-          onSwap={onSwap}
-          onToggleCart={onToggleCart}
-        />
-      ))}
+    <div className="ml-10 mt-2 relative group/carousel">
+      <button
+        onClick={() => scroll("left")}
+        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10 w-7 h-7 bg-neutral-700 hover:bg-neutral-600 rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity"
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+          <path d="M15 18L9 12L15 6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+
+      <div ref={scrollRef} className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+        {entries.map(([cat, item]) => (
+          <div key={cat} className="flex-shrink-0 w-44">
+            <ComboCard
+              category={cat}
+              item={item}
+              cartIds={cartIds}
+              swapping={swappingCats.has(cat)}
+              onSwap={onSwap}
+              onToggleCart={onToggleCart}
+            />
+          </div>
+        ))}
+      </div>
+
+      <button
+        onClick={() => scroll("right")}
+        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10 w-7 h-7 bg-neutral-700 hover:bg-neutral-600 rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity"
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+          <path d="M9 18L15 12L9 6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
     </div>
   );
 }
@@ -604,7 +636,7 @@ export default function ChatPage() {
                   </p>
                 </div>
                 {msg.combo && Object.keys(msg.combo).length > 0 && (
-                  <ComboGrid
+                  <ComboCarousel
                     combo={msg.combo}
                     cartIds={cartIds}
                     swappingCats={swappingCats}
