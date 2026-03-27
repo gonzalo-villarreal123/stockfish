@@ -62,6 +62,24 @@ async def get_available_groups() -> List[str]:
 # ── Sesiones en memoria ────────────────────────────────────
 _sessions: Dict[str, dict] = {}
 
+# Keywords por grupo para detección rápida en Python
+GROUP_KEYWORDS = {
+    "muebles":     ["mueble", "sillón", "sillon", "sofa", "sofá", "mesa", "silla", "escritorio", "cama", "placard", "estante", "rack", "biblioteca"],
+    "textiles":    ["textil", "alfombra", "almohadón", "almohada", "cortina", "manta", "frazada", "cubrecama"],
+    "iluminacion": ["lámpara", "lampara", "iluminación", "iluminacion", "luz", "velador", "aplique", "araña"],
+    "arte":        ["cuadro", "arte", "pintura", "ilustración", "ilustracion", "fotografía", "fotografia", "lámina", "lamina", "poster"],
+    "decoracion":  ["florero", "jarrón", "jarron", "escultura", "figura", "espejo", "planta", "vela", "decoración", "decoracion", "accesorio"],
+}
+
+def detect_groups_from_text(text: str) -> List[str]:
+    """Detecta grupos de categorías mencionados explícitamente en el texto."""
+    text_lower = text.lower()
+    found = []
+    for group_id, keywords in GROUP_KEYWORDS.items():
+        if any(kw in text_lower for kw in keywords):
+            found.append(group_id)
+    return found
+
 
 # ── Schemas ────────────────────────────────────────────────
 
@@ -171,8 +189,12 @@ async def chat(body: ChatMessage):
     if step == "intake" or step == "awaiting_clarification":
         intake_result = await run_intake(session_id, body.message)
         available_groups = await get_available_groups()
+        # Detectar categorías: primero con Claude, fallback con keywords
+        claude_groups = intake_result.get("category_groups", [])
+        keyword_groups = detect_groups_from_text(body.message)
+        raw_detected = list(set(claude_groups) | set(keyword_groups))
         detected_groups = [
-            g for g in intake_result.get("category_groups", [])
+            g for g in raw_detected
             if g in CATEGORY_GROUPS and g in available_groups
         ]
 

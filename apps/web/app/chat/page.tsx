@@ -475,7 +475,7 @@ export default function ChatPage() {
   const [cart, setCart] = useState<Product[]>([]);
   const [swappingCats, setSwappingCats] = useState<Set<string>>(new Set());
   const [shownIds, setShownIds] = useState<Record<string, string[]>>({});
-  const [swapCount, setSwapCount] = useState<Record<string, number>>({});
+  const swapCountRef = useRef<Record<string, number>>({});
   const SWAP_LIMIT = 5;
   const [context, setContext] = useState<{
     style_keywords: string[];
@@ -613,7 +613,7 @@ export default function ChatPage() {
   async function handleSwap(category: string) {
     if (!sessionId) return;
 
-    const currentCount = swapCount[category] || 0;
+    const currentCount = swapCountRef.current[category] || 0;
 
     // Si ya alcanzó el límite → mostrar feedback directamente
     if (currentCount >= SWAP_LIMIT) {
@@ -642,8 +642,7 @@ export default function ChatPage() {
       if (!res.ok) throw new Error();
       const data: { product: Product | null } = await res.json();
 
-      const newCount = currentCount + 1;
-      setSwapCount((prev) => ({ ...prev, [category]: newCount }));
+      swapCountRef.current[category] = currentCount + 1;
 
       if (data.product) {
         const newProduct = data.product;
