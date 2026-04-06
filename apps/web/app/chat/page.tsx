@@ -1,8 +1,19 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 const AGENTS_URL = process.env.NEXT_PUBLIC_AGENTS_URL || "http://localhost:8000";
+
+const MAX_CHARS = 500;
+
+const EXAMPLE_PROMPTS = [
+  "Sillón para living moderno",
+  "Mesa ratona estilo escandinavo",
+  "Dormitorio minimalista en tonos neutros",
+  "Comedor industrial con madera y metal",
+  "Balcón pequeño con ambiente relajante",
+  "Home office con estilo contemporáneo",
+];
 
 const CATEGORY_LABELS: Record<string, string> = {
   mueble:    "Muebles",
@@ -463,18 +474,16 @@ function Cart({ items, onRemove }: { items: Product[]; onRemove: (id: string) =>
 // ── Main ───────────────────────────────────────────────────
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      text: "Hola, soy Stockfish. Contame qué estilo de decoración estás buscando y te armo un combo de productos reales para tu espacio.",
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [cart, setCart] = useState<Product[]>([]);
   const [swappingCats, setSwappingCats] = useState<Set<string>>(new Set());
   const [shownIds, setShownIds] = useState<Record<string, string[]>>({});
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [retryFn, setRetryFn] = useState<(() => void) | null>(null);
+  const [showScrollBadge, setShowScrollBadge] = useState(false);
   const swapCountRef = useRef<Record<string, number>>({});
   const SWAP_LIMIT = 5;
   const [context, setContext] = useState<{
@@ -489,65 +498,96 @@ export default function ChatPage() {
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const cartIds = new Set(cart.map((p) => p.id));
 
+  // Track whether user is scrolled away from bottom
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollBadge(distFromBottom > 100);
+  }, []);
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [handleScroll]);
+
+  // Auto-scroll when new messages arrive, only if user is near bottom
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distFromBottom < 200) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      // User is reading history — show badge instead of force-scrolling
+      setShowScrollBadge(true);
+    }
   }, [messages, loading, widgetStep]);
 
-  async function sendMessage() {
-    const text = input.trim();
+  function scrollToBottom() {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    setShowScrollBadge(false);
+  }
+
+  async function sendMessage(overrideText?: string) {
+    const text = (overrideText ?? input).trim();
     if (!text || loading) return;
 
     setInput("");
+    setErrorMsg(null);
+    setRetryFn(null);
     setMessages((prev) => [...prev, { role: "user", text }]);
     setLoading(true);
     setWidgetStep("none");
 
-    try {
-      const res = await fetch(`${AGENTS_URL}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, session_id: sessionId }),
-      });
+    const doSend = async () => {
+      try {
+        const res = await fetch(`${AGENTS_URL}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text, session_id: sessionId }),
+        });
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
 
-      setSessionId(data.session_id);
-      if (data.context) setContext(data.context);
+        setSessionId(data.session_id);
+        if (data.context) setContext(data.context);
 
-      setMessages((prev) => [...prev, { role: "assistant", text: data.reply }]);
+        setMessages((prev) => [...prev, { role: "assistant", text: data.reply }]);
 
-      if (data.step === "budget_only" && data.context?.pre_selected_groups) {
-        // Categorías ya detectadas → ir directo al presupuesto
-        setSelectedGroups(data.context.pre_selected_groups);
-        setWidgetStep("budget");
-      } else if (data.step === "clarifying" && data.context?.available_groups) {
-        // Mostrar chips de categorías
-        const catRes = await fetch(`${AGENTS_URL}/categories`);
-        const allGroups: CategoryGroup[] = await catRes.json();
-        const filtered = allGroups.filter((g) =>
-          data.context.available_groups.includes(g.id)
-        );
-        setAvailableGroups(filtered);
-        setWidgetStep("categories");
+        if (data.step === "budget_only" && data.context?.pre_selected_groups) {
+          setSelectedGroups(data.context.pre_selected_groups);
+          setWidgetStep("budget");
+        } else if (data.step === "clarifying" && data.context?.available_groups) {
+          const catRes = await fetch(`${AGENTS_URL}/categories`);
+          const allGroups: CategoryGroup[] = await catRes.json();
+          const filtered = allGroups.filter((g) =>
+            data.context.available_groups.includes(g.id)
+          );
+          setAvailableGroups(filtered);
+          setWidgetStep("categories");
+        }
+      } catch {
+        setErrorMsg("No se pudo conectar con el servidor.");
+        setRetryFn(() => doSend);
+      } finally {
+        setLoading(false);
+        inputRef.current?.focus();
       }
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: "Hubo un error al conectar con el servidor. Intentá de nuevo." },
-      ]);
-    } finally {
-      setLoading(false);
-      inputRef.current?.focus();
-    }
+    };
+
+    await doSend();
   }
 
   function handleCategoriesNext(selected: string[]) {
     setSelectedGroups(selected);
-    // Show user selection as message
     const groupLabels = availableGroups
       .filter((g) => selected.includes(g.id))
       .map((g) => `${g.emoji} ${g.label}`)
@@ -563,51 +603,55 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, { role: "user", text: budgetText }]);
     setWidgetStep("none");
     setLoading(true);
+    setErrorMsg(null);
+    setRetryFn(null);
 
-    try {
-      const res = await fetch(`${AGENTS_URL}/clarify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          session_id: sessionId,
-          selected_groups: selectedGroups,
-          budget_total: budget,
-        }),
-      });
+    const doConfirm = async () => {
+      try {
+        const res = await fetch(`${AGENTS_URL}/clarify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            session_id: sessionId,
+            selected_groups: selectedGroups,
+            budget_total: budget,
+          }),
+        });
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
 
-      if (data.context) setContext(data.context);
+        if (data.context) setContext(data.context);
 
-      if (data.step === "interactive" && data.combo) {
-        const newCombo: ComboData = data.combo;
-        const ids: Record<string, string[]> = {};
-        for (const [cat, item] of Object.entries(newCombo)) {
-          const shown: string[] = [];
-          if (item.best?.id) shown.push(String(item.best.id));
-          if (item.alternative?.id) shown.push(String(item.alternative.id));
-          ids[cat] = shown;
+        if (data.step === "interactive" && data.combo) {
+          const newCombo: ComboData = data.combo;
+          const ids: Record<string, string[]> = {};
+          for (const [cat, item] of Object.entries(newCombo)) {
+            const shown: string[] = [];
+            if (item.best?.id) shown.push(String(item.best.id));
+            if (item.alternative?.id) shown.push(String(item.alternative.id));
+            ids[cat] = shown;
+          }
+          setShownIds(ids);
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", text: data.reply, combo: newCombo },
+          ]);
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", text: data.reply },
+          ]);
         }
-        setShownIds(ids);
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", text: data.reply, combo: newCombo },
-        ]);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", text: data.reply },
-        ]);
+      } catch {
+        setErrorMsg("No se pudo armar tu combo.");
+        setRetryFn(() => doConfirm);
+      } finally {
+        setLoading(false);
       }
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: "Hubo un error armando tu combo. Intentá de nuevo." },
-      ]);
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    await doConfirm();
   }
 
   async function handleSwap(category: string) {
@@ -615,7 +659,6 @@ export default function ChatPage() {
 
     const currentCount = swapCountRef.current[category] || 0;
 
-    // Si ya alcanzó el límite → mostrar feedback directamente
     if (currentCount >= SWAP_LIMIT) {
       setMessages((prev) => [
         ...prev,
@@ -667,7 +710,6 @@ export default function ChatPage() {
           return updated;
         });
       } else {
-        // Sin más stock → feedback inmediato
         setMessages((prev) => [
           ...prev,
           { role: "assistant", text: "", feedbackCategory: category },
@@ -695,6 +737,8 @@ export default function ChatPage() {
   }
 
   const inputDisabled = widgetStep !== "none" || loading;
+  const charsLeft = MAX_CHARS - input.length;
+  const showCharLimit = input.length > MAX_CHARS * 0.8;
 
   return (
     <div className="flex flex-col h-screen bg-[#0a0a0a]">
@@ -705,8 +749,36 @@ export default function ChatPage() {
       </header>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-hide">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto px-4 py-6 scrollbar-hide"
+      >
         <div className="max-w-3xl mx-auto space-y-6">
+
+          {/* Empty state */}
+          {messages.length === 0 && !loading && (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center mb-5">
+                <span className="text-black text-xl font-bold">S</span>
+              </div>
+              <h1 className="text-white text-xl font-semibold mb-1">Hola, soy Stockfish</h1>
+              <p className="text-neutral-400 text-sm mb-8 max-w-xs">
+                Contame qué estilo buscás y te armo un combo de productos reales de tiendas argentinas.
+              </p>
+              <div className="grid grid-cols-2 gap-2 w-full max-w-sm">
+                {EXAMPLE_PROMPTS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    onClick={() => sendMessage(prompt)}
+                    className="text-left text-sm text-neutral-300 border border-neutral-800 rounded-xl px-3 py-2.5 hover:border-neutral-600 hover:text-white transition-colors"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {messages.map((msg, i) =>
             msg.role === "assistant" ? (
               <div key={i} className="flex flex-col gap-3">
@@ -795,9 +867,50 @@ export default function ChatPage() {
             </div>
           )}
 
+          {/* Inline error with Retry */}
+          {errorMsg && !loading && (
+            <div className="flex gap-3 items-start">
+              <div className="w-7 h-7 rounded-full bg-red-900/50 border border-red-800 flex-shrink-0 flex items-center justify-center mt-0.5">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#f87171" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div className="flex items-center gap-3 pt-1">
+                <p className="text-red-400 text-sm">{errorMsg}</p>
+                {retryFn && (
+                  <button
+                    onClick={() => {
+                      setLoading(true);
+                      setErrorMsg(null);
+                      retryFn();
+                    }}
+                    className="text-xs font-semibold text-white bg-neutral-800 border border-neutral-700 px-3 py-1 rounded-lg hover:bg-neutral-700 transition-colors flex-shrink-0"
+                  >
+                    Reintentar
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <div ref={bottomRef} />
         </div>
       </div>
+
+      {/* Scroll to bottom badge */}
+      {showScrollBadge && (
+        <div className="absolute bottom-28 left-1/2 -translate-x-1/2 z-40">
+          <button
+            onClick={scrollToBottom}
+            className="flex items-center gap-1.5 bg-neutral-800 border border-neutral-700 text-white text-xs font-medium px-3 py-1.5 rounded-full shadow-lg hover:bg-neutral-700 transition-colors"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+              <path d="M12 5v14M5 12l7 7 7-7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Nuevo mensaje
+          </button>
+        </div>
+      )}
 
       {/* Input */}
       <div className="px-4 pb-6 pt-2">
@@ -808,7 +921,9 @@ export default function ChatPage() {
             <textarea
               ref={inputRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                if (e.target.value.length <= MAX_CHARS) setInput(e.target.value);
+              }}
               onKeyDown={handleKeyDown}
               disabled={inputDisabled}
               placeholder={widgetStep !== "none" ? "Usá los botones de arriba..." : "Describí el estilo que buscás..."}
@@ -820,8 +935,13 @@ export default function ChatPage() {
                 t.style.height = t.scrollHeight + "px";
               }}
             />
+            {showCharLimit && (
+              <span className={`text-xs flex-shrink-0 mb-1 ${charsLeft <= 20 ? "text-red-400" : "text-neutral-500"}`}>
+                {charsLeft}
+              </span>
+            )}
             <button
-              onClick={sendMessage}
+              onClick={() => sendMessage()}
               disabled={!input.trim() || inputDisabled}
               className="flex-shrink-0 w-8 h-8 bg-white rounded-lg flex items-center justify-center disabled:opacity-30 hover:bg-neutral-200 transition-colors"
             >
