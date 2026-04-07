@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import ReferralShareCTA from "../../components/ReferralShareCTA";
 
 const AGENTS_URL = process.env.NEXT_PUBLIC_AGENTS_URL || "http://localhost:8000";
 
@@ -207,6 +208,7 @@ function ComboCard({
   onSwap: (category: string) => void;
   onToggleCart: (product: Product) => void;
 }) {
+  const [imgError, setImgError] = useState(false);
   const label = CATEGORY_LABELS[category] || category;
   const product = item.best;
 
@@ -226,22 +228,33 @@ function ComboCard({
   const inCart = cartIds.has(product.id);
 
   return (
-    <div className="flex flex-col rounded-2xl bg-neutral-900 border border-neutral-800 overflow-hidden hover:border-neutral-700 transition-colors">
-      <div className="px-4 py-2 bg-neutral-800/50 border-b border-neutral-800 flex items-center justify-between">
-        <span className="text-xs text-neutral-400 font-medium uppercase tracking-wide">{label}</span>
-        <span className="text-xs text-neutral-600">{product.merchant_slug}</span>
-      </div>
-
+    <div className="flex flex-col rounded-2xl bg-neutral-900 border border-neutral-800 overflow-hidden hover:border-neutral-700 hover:shadow-lg hover:shadow-black/40 transition-all">
       <a href={product.url} target="_blank" rel="noopener noreferrer" className="block relative overflow-hidden bg-neutral-800 aspect-square">
-        <img
-          src={product.primary_image}
-          alt={product.name}
-          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-        />
+        {imgError || !product.primary_image ? (
+          <div className="w-full h-full flex items-center justify-center text-neutral-600">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+              <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
+              <path d="M21 15l-5-5L5 21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+        ) : (
+          <img
+            src={product.primary_image}
+            alt={product.name}
+            onError={() => setImgError(true)}
+            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+          />
+        )}
       </a>
 
       <div className="p-3 flex-1 flex flex-col gap-2">
-        <p className="text-sm text-white font-medium leading-snug line-clamp-2">{product.name}</p>
+        <div className="flex items-start gap-2">
+          <p className="text-sm text-white font-medium leading-snug line-clamp-2 flex-1">{product.name}</p>
+          <span className="flex-shrink-0 text-xs bg-neutral-800 text-neutral-400 px-2 py-0.5 rounded-full border border-neutral-700 whitespace-nowrap">
+            {product.merchant_slug}
+          </span>
+        </div>
         <p className="text-sm font-semibold text-white">{formatPrice(product.price)}</p>
 
         <div className="flex gap-2 mt-auto pt-1">
@@ -251,7 +264,7 @@ function ComboCard({
             rel="noopener noreferrer"
             className="flex-1 text-center text-xs bg-white text-black font-semibold py-1.5 rounded-lg hover:bg-neutral-200 transition-colors"
           >
-            Ver →
+            Ver en tienda
           </a>
           <button
             onClick={() => onSwap(category)}
@@ -347,9 +360,9 @@ function FeedbackPrompt({
 }
 
 
-// ── Combo Carousel ─────────────────────────────────────────
+// ── Combo Grid ─────────────────────────────────────────────
 
-function ComboCarousel({
+function ComboGrid({
   combo,
   cartIds,
   swappingCats,
@@ -362,51 +375,23 @@ function ComboCarousel({
   onSwap: (category: string) => void;
   onToggleCart: (product: Product) => void;
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  function scroll(dir: "left" | "right") {
-    scrollRef.current?.scrollBy({ left: dir === "right" ? 220 : -220, behavior: "smooth" });
-  }
-
-  // Filtrar cards sin stock
   const entries = Object.entries(combo).filter(([, item]) => !item.no_stock && item.best);
 
   if (entries.length === 0) return null;
 
   return (
-    <div className="ml-10 mt-2 relative group/carousel">
-      <button
-        onClick={() => scroll("left")}
-        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10 w-7 h-7 bg-neutral-700 hover:bg-neutral-600 rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-          <path d="M15 18L9 12L15 6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
-
-      <div ref={scrollRef} className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-        {entries.map(([cat, item]) => (
-          <div key={cat} className="flex-shrink-0 w-44">
-            <ComboCard
-              category={cat}
-              item={item}
-              cartIds={cartIds}
-              swapping={swappingCats.has(cat)}
-              onSwap={onSwap}
-              onToggleCart={onToggleCart}
-            />
-          </div>
-        ))}
-      </div>
-
-      <button
-        onClick={() => scroll("right")}
-        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10 w-7 h-7 bg-neutral-700 hover:bg-neutral-600 rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-          <path d="M9 18L15 12L9 6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
+    <div className="ml-10 mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {entries.map(([cat, item]) => (
+        <ComboCard
+          key={cat}
+          category={cat}
+          item={item}
+          cartIds={cartIds}
+          swapping={swappingCats.has(cat)}
+          onSwap={onSwap}
+          onToggleCart={onToggleCart}
+        />
+      ))}
     </div>
   );
 }
@@ -801,19 +786,22 @@ export default function ChatPage() {
                   />
                 )}
                 {msg.combo && Object.keys(msg.combo).length > 0 && (
-                  <ComboCarousel
-                    combo={msg.combo}
-                    cartIds={cartIds}
-                    swappingCats={swappingCats}
-                    onSwap={handleSwap}
-                    onToggleCart={(p) =>
-                      setCart((prev) =>
-                        prev.find((x) => x.id === p.id)
-                          ? prev.filter((x) => x.id !== p.id)
-                          : [...prev, p]
-                      )
-                    }
-                  />
+                  <>
+                    <ComboGrid
+                      combo={msg.combo}
+                      cartIds={cartIds}
+                      swappingCats={swappingCats}
+                      onSwap={handleSwap}
+                      onToggleCart={(p) =>
+                        setCart((prev) =>
+                          prev.find((x) => x.id === p.id)
+                            ? prev.filter((x) => x.id !== p.id)
+                            : [...prev, p]
+                        )
+                      }
+                    />
+                    {i === messages.length - 1 && <ReferralShareCTA />}
+                  </>
                 )}
               </div>
             ) : (

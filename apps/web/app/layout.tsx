@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import ReferralCapture from "../components/ReferralCapture";
 
 export const metadata: Metadata = {
   title: "Stockfish — Decorá con IA",
@@ -13,7 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body>
+        <ReferralCapture />
+        {children}
+      </body>
     </html>
   );
 }
