@@ -182,6 +182,7 @@ export default function WidgetPage() {
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [budget, setBudget] = useState<number | null>(null);
   const [budgetInput, setBudgetInput] = useState("");
+  const [noBudgetLimit, setNoBudgetLimit] = useState(false);
   const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
   const [combo, setCombo] = useState<ComboData | null>(null);
 
@@ -776,12 +777,29 @@ export default function WidgetPage() {
                   </>
                 )}
                 <span className="clarify-label">Presupuesto total (opcional)</span>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", marginBottom: 2 }}>
+                  <input
+                    type="checkbox"
+                    checked={noBudgetLimit}
+                    onChange={(e) => {
+                      setNoBudgetLimit(e.target.checked);
+                      if (e.target.checked) {
+                        setBudget(null);
+                        setBudgetInput("");
+                      }
+                    }}
+                    style={{ width: 16, height: 16, accentColor: "#fff", cursor: "pointer" }}
+                  />
+                  <span style={{ fontSize: 13, color: "#aaa" }}>Sin límite de presupuesto</span>
+                </label>
                 <div className="budget-row">
                   <input
                     className="budget-input"
                     type="number"
                     placeholder="Ej: 150000"
                     value={budgetInput}
+                    disabled={noBudgetLimit}
+                    style={noBudgetLimit ? { opacity: 0.3 } : {}}
                     onChange={(e) => {
                       setBudgetInput(e.target.value);
                       setBudget(e.target.value ? Number(e.target.value) : null);
