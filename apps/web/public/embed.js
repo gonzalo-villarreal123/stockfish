@@ -33,7 +33,18 @@
   var btn = document.createElement("button");
   btn.id = "sf-btn";
   btn.title = "Abrir asistente de decoración";
-  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+  btn.innerHTML = '<svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">'
+    // Pez — cuerpo
+    + '<ellipse cx="27" cy="31" rx="13" ry="8.5" fill="#000"/>'
+    // Pez — cola
+    + '<path d="M40 31 L50 24 L50 38 Z" fill="#000"/>'
+    // Pez — ojo
+    + '<circle cx="21" cy="29" r="2" fill="#fff"/>'
+    // Estrella IA — 4 puntas, esquina superior derecha
+    + '<path d="M47 8 L48.5 12.5 L53 14 L48.5 15.5 L47 20 L45.5 15.5 L41 14 L45.5 12.5 Z" fill="#000"/>'
+    // Texto "AI" pequeño bajo el pez
+    + '<text x="27" y="48" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="8.5" font-weight="800" fill="#000" text-anchor="middle" letter-spacing="2">AI</text>'
+    + '</svg>';
 
   var panel = document.createElement("div");
   panel.id = "sf-panel";
@@ -56,7 +67,7 @@
     open = !open;
     panel.style.display = open ? "block" : "none";
     btn.innerHTML = open
-      ? '<svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
-      : '<svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+      ? '<svg viewBox="0 0 60 60" fill="none" stroke="#000" stroke-width="5" stroke-linecap="round"><line x1="42" y1="18" x2="18" y2="42"/><line x1="18" y1="18" x2="42" y2="42"/></svg>'
+      : '<svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="27" cy="31" rx="13" ry="8.5" fill="#000"/><path d="M40 31 L50 24 L50 38 Z" fill="#000"/><circle cx="21" cy="29" r="2" fill="#fff"/><path d="M47 8 L48.5 12.5 L53 14 L48.5 15.5 L47 20 L45.5 15.5 L41 14 L45.5 12.5 Z" fill="#000"/><text x="27" y="48" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="8.5" font-weight="800" fill="#000" text-anchor="middle" letter-spacing="2">AI</text></svg>';
   });
 })();
