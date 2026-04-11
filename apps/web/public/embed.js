@@ -55,6 +55,15 @@
   document.body.appendChild(bubble);
   document.body.appendChild(panel);
 
+  // ── Escuchar eventos del widget ───────────────────────────
+  window.addEventListener("message", function (e) {
+    if (!e.data || e.data.type !== "sf-add-to-cart") return;
+    var product = e.data.product;
+    if (!product || !product.url) return;
+    // Abrir el producto en una nueva pestaña para que el usuario complete la compra
+    window.open(product.url, "_blank");
+  });
+
   // ── Lógica ────────────────────────────────────────────────
   var open = false;
 

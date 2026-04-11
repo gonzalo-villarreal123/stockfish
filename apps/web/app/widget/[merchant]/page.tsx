@@ -98,7 +98,35 @@ function ProductCard({
     item.best ? [item.best.id] : []
   );
 
+  const [addedToCart, setAddedToCart] = useState(false);
+
   if (!current || item.no_stock) return null;
+
+  async function handleAddToCart() {
+    // Trackear en nuestro backend
+    fetch(`${AGENTS_URL}/track`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "add_to_cart",
+        session_id: sessionId,
+        product_id: current!.id,
+        product_name: current!.name,
+        product_url: current!.url,
+        price: current!.price,
+        merchant_slug: merchantSlug,
+      }),
+    }).catch(() => {});
+
+    // Notificar al parent (embed.js) para que maneje el carrito
+    window.parent.postMessage(
+      { type: "sf-add-to-cart", product: current },
+      "*"
+    );
+
+    setAddedToCart(true);
+    setTimeout(() => setAddedToCart(false), 2000);
+  }
 
   async function handleSwap() {
     setSwapping(true);
@@ -140,11 +168,17 @@ function ProductCard({
         <p className="card-name">{current.name}</p>
         <p className="card-price">{formatPrice(current.price)}</p>
         <div className="card-actions">
+          <button
+            onClick={handleAddToCart}
+            className="btn-primary"
+          >
+            {addedToCart ? "✓ Agregado" : "🛒 Agregar"}
+          </button>
           <a
             href={current.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-primary"
+            className="btn-secondary"
           >
             Ver
           </a>
@@ -153,7 +187,7 @@ function ProductCard({
             disabled={swapping}
             className="btn-secondary"
           >
-            {swapping ? "..." : "Cambiar"}
+            {swapping ? "..." : "↺"}
           </button>
         </div>
       </div>

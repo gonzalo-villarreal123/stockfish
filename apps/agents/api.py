@@ -387,6 +387,24 @@ async def swap(body: SwapRequest):
     return SwapResponse(product=product)
 
 
+class TrackEvent(BaseModel):
+    event: str
+    session_id: Optional[str] = None
+    product_id: Optional[str] = None
+    product_name: Optional[str] = None
+    product_url: Optional[str] = None
+    price: Optional[float] = None
+    merchant_slug: Optional[str] = None
+
+
+@app.post("/track")
+async def track(body: TrackEvent):
+    """Registra eventos de conversión (add_to_cart, view, etc.) para reportes de atribución."""
+    print(f"[Track] {body.event} | merchant={body.merchant_slug} | product={body.product_name} | ${body.price} | session={body.session_id}")
+    # TODO: persistir en Supabase (tabla conversion_events)
+    return {"ok": True}
+
+
 @app.post("/feedback")
 async def feedback(body: FeedbackRequest):
     """Recibe feedback del usuario cuando no encuentra lo que busca en una categoría."""
