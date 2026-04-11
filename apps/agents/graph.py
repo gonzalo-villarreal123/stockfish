@@ -76,9 +76,9 @@ def embedding_to_str(embedding: list) -> str:
     return "[" + ",".join(str(x) for x in embedding) + "]"
 
 def search_by_category(embedding_str: str, category: str, max_price: Optional[float] = None,
-                        limit: int = 3, exclude_ids: List[str] = None) -> list:
+                        limit: int = 3, exclude_ids: List[str] = None,
+                        merchant_id: Optional[str] = None) -> list:
     """Busca productos en Supabase para una categoría específica."""
-    # Pedimos más resultados para tener margen al filtrar por precio y excluir IDs
     fetch_limit = (limit + (len(exclude_ids) if exclude_ids else 0)) * 3
 
     payload = {
@@ -86,6 +86,8 @@ def search_by_category(embedding_str: str, category: str, max_price: Optional[fl
         "category_filter": category,
         "limit_n": fetch_limit,
     }
+    if merchant_id:
+        payload["merchant_filter"] = [merchant_id]
 
     with httpx.Client() as client:
         r = client.post(
@@ -97,15 +99,44 @@ def search_by_category(embedding_str: str, category: str, max_price: Optional[fl
         r.raise_for_status()
         products = r.json()
 
-    # Filtrar por precio en Python (evita depender del RPC para esto)
     if max_price:
         products = [p for p in products if p.get("price", 0) <= max_price]
 
-    # Excluir IDs ya mostrados
     if exclude_ids:
         products = [p for p in products if str(p.get("id")) not in exclude_ids]
 
     return products[:limit]
+
+
+def analyze_image(image_base64: str, media_type: str = "image/jpeg") -> str:
+    """Usa Claude Vision para describir el estilo de una imagen y generar un query de búsqueda."""
+    print("[Vision] Analizando imagen...")
+    response = anthropic_client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=300,
+        messages=[{
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": media_type,
+                        "data": image_base64,
+                    },
+                },
+                {
+                    "type": "text",
+                    "text": """Analizá esta imagen de decoración de interiores y describí en una oración el estilo, paleta de colores y materiales predominantes.
+Sé específico y conciso. Ejemplo: "Living nórdico con tonos beige y madera clara, textiles suaves y líneas limpias."
+Respondé solo con la descripción, sin texto adicional."""
+                }
+            ],
+        }]
+    )
+    description = response.content[0].text.strip()
+    print(f"[Vision] Descripción: {description}")
+    return description
 
 def allocate_budget(budget_total: float, categories: List[str]) -> Dict[str, float]:
     """Distribuye el presupuesto total entre las categorías seleccionadas."""
@@ -198,10 +229,11 @@ def combo_search_node(state: DesignState) -> DesignState:
 
         budget_per_category = allocate_budget(budget_total, categories) if budget_total else {}
 
+        merchant_id = state.get("merchant_id")
         combo = {}
         for category in categories:
             max_price = budget_per_category.get(category)
-            products = search_by_category(embedding_str, category, max_price=max_price, limit=2)
+            products = search_by_category(embedding_str, category, max_price=max_price, limit=2, merchant_id=merchant_id)
 
             if products:
                 combo[category] = {
@@ -273,7 +305,8 @@ async def _run_intake_only(state: DesignState) -> dict:
 
 async def run_combo_search(session_id: str, raw_intent: str, style_keywords: List[str],
                             style_tags: List[str], selected_categories: List[str],
-                            budget_total: Optional[float]) -> dict:
+                            budget_total: Optional[float],
+                            merchant_id: Optional[str] = None) -> dict:
     """Ejecuta la búsqueda de combo con categorías y presupuesto ya definidos."""
     state: DesignState = {
         "session_id": session_id,
@@ -285,6 +318,7 @@ async def run_combo_search(session_id: str, raw_intent: str, style_keywords: Lis
         "selected_categories": selected_categories,
         "combo": {},
         "error": None,
+        "merchant_id": merchant_id,
     }
     from concurrent.futures import ThreadPoolExecutor
     import asyncio
@@ -314,7 +348,8 @@ async def run_design_session(session_id: str, raw_intent: str) -> dict:
     return result
 
 async def generic_search_by_category(category: str, excluded_ids: List[str] = None,
-                                      budget_max: Optional[float] = None) -> Optional[dict]:
+                                      budget_max: Optional[float] = None,
+                                      merchant_id: Optional[str] = None) -> Optional[dict]:
     """Búsqueda de fallback: devuelve cualquier producto disponible de la categoría,
     sin filtro de estilo. Útil cuando no hay más opciones que coincidan con el estilo."""
     query_text = CATEGORY_LABELS.get(category, category)
@@ -325,7 +360,8 @@ async def generic_search_by_category(category: str, excluded_ids: List[str] = No
             embedding_str, category,
             max_price=budget_max,
             limit=1,
-            exclude_ids=excluded_ids or []
+            exclude_ids=excluded_ids or [],
+            merchant_id=merchant_id,
         )
         return products[0] if products else None
     except Exception as e:
@@ -335,7 +371,8 @@ async def generic_search_by_category(category: str, excluded_ids: List[str] = No
 
 async def swap_product(style_keywords: List[str], style_tags: List[str],
                         category: str, excluded_ids: List[str],
-                        budget_max: Optional[float] = None) -> Optional[dict]:
+                        budget_max: Optional[float] = None,
+                        merchant_id: Optional[str] = None) -> Optional[dict]:
     """Busca la siguiente mejor opción para una categoría, excluyendo productos ya mostrados."""
     query_text = " ".join(style_keywords)
     if style_tags:
@@ -350,7 +387,8 @@ async def swap_product(style_keywords: List[str], style_tags: List[str],
             embedding_str, category,
             max_price=budget_max,
             limit=1,
-            exclude_ids=excluded_ids
+            exclude_ids=excluded_ids,
+            merchant_id=merchant_id,
         )
         return products[0] if products else None
     except Exception as e:
