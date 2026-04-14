@@ -27,6 +27,21 @@ HEADERS = {
 voyage_client = voyageai.Client(api_key=VOYAGE_API_KEY)
 anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
+# ── Contexto semántico por categoría ──────────────────────
+# Agrega bias al query para que el vector search encuentre
+# el tipo de producto correcto dentro de cada categoría
+
+CATEGORY_CONTEXT = {
+    "lampara":   "velador lámpara de mesa lámpara de pie iluminación ambiente decorativa living",
+    "mueble":    "mueble sofá sillón mesa silla living comedor dormitorio",
+    "textil":    "textil almohadón alfombra manta cortina decoración suave",
+    "cuadro":    "cuadro arte pintura ilustración lámina decoración pared",
+    "florero":   "florero jarrón vaso decorativo centro de mesa",
+    "escultura": "escultura figura objeto decorativo accesorio",
+    "espejo":    "espejo decorativo pared living",
+    "planta":    "planta natural artificial maceta verde decoración",
+}
+
 # ── Categorías disponibles ──────────────────────────────────
 
 CATEGORY_LABELS = {
@@ -233,7 +248,15 @@ def combo_search_node(state: DesignState) -> DesignState:
         combo = {}
         for category in categories:
             max_price = budget_per_category.get(category)
-            products = search_by_category(embedding_str, category, max_price=max_price, limit=2, merchant_id=merchant_id)
+            # Enriquecer query con contexto específico de la categoría
+            category_ctx = CATEGORY_CONTEXT.get(category, "")
+            if category_ctx:
+                category_query = f"{query_text} {category_ctx}"
+                category_embedding = get_embedding(category_query)
+                category_embedding_str = embedding_to_str(category_embedding)
+            else:
+                category_embedding_str = embedding_str
+            products = search_by_category(category_embedding_str, category, max_price=max_price, limit=2, merchant_id=merchant_id)
 
             if products:
                 combo[category] = {
@@ -381,7 +404,9 @@ async def swap_product(style_keywords: List[str], style_tags: List[str],
     print(f"[Swap] Buscando alternativa para '{category}' excluyendo {excluded_ids}")
 
     try:
-        embedding = get_embedding(query_text)
+        category_ctx = CATEGORY_CONTEXT.get(category, "")
+        full_query = f"{query_text} {category_ctx}".strip() if category_ctx else query_text
+        embedding = get_embedding(full_query)
         embedding_str = embedding_to_str(embedding)
         products = search_by_category(
             embedding_str, category,
