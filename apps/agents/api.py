@@ -150,7 +150,7 @@ def expand_groups_to_slugs(group_ids: List[str]) -> List[str]:
 
 
 def build_combo_reply(combo: dict, style_tags: list) -> str:
-    style = ", ".join(style_tags) if style_tags else "tu estilo"
+    style = ", ".join(style_tags) if style_tags else "lo que buscás"
     found = [cat for cat, data in combo.items() if not data.get("no_stock")]
     no_stock = [cat for cat, data in combo.items() if data.get("no_stock")]
 
@@ -241,11 +241,16 @@ async def chat(body: ChatMessage):
             "merchant_slug": body.merchant_slug,
         }
 
-        style = ", ".join(intake_result.get("style_tags", [])) or "tu estilo"
+        style_tags = intake_result.get("style_tags", [])
+        style_keywords = intake_result.get("style_keywords", [])
+        style = ", ".join(style_tags) if style_tags else (", ".join(style_keywords[:2]) if style_keywords else None)
 
         if detected_groups:
             group_labels = " y ".join(CATEGORY_GROUPS[g]["label"] for g in detected_groups)
-            reply = f"¡Perfecto! Busco **{group_labels}** con estilo **{style}**.\n\n¿Tenés un presupuesto en mente?"
+            if style:
+                reply = f"¡Perfecto! Busco **{group_labels}** con el estilo que describiste.\n\n¿Tenés un presupuesto en mente?"
+            else:
+                reply = f"¡Perfecto! Busco **{group_labels}** para vos.\n\n¿Tenés un presupuesto en mente?"
             return ChatResponse(
                 session_id=session_id,
                 reply=reply,
