@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
+import { initPostHog, capture } from "../../../lib/posthog";
 
 const AGENTS_URL = process.env.NEXT_PUBLIC_AGENTS_URL || "http://localhost:8000";
 
@@ -103,6 +104,16 @@ function ProductCard({
   if (!current || item.no_stock) return null;
 
   async function handleAddToCart() {
+    // Trackear en PostHog
+    capture("widget_add_to_cart", {
+      session_id: sessionId,
+      product_id: current!.id,
+      product_name: current!.name,
+      price: current!.price,
+      category,
+      merchant_slug: merchantSlug,
+    });
+
     // Trackear en nuestro backend
     fetch(`${AGENTS_URL}/track`, {
       method: "POST",
@@ -129,6 +140,12 @@ function ProductCard({
   }
 
   async function handleSwap() {
+    capture("widget_product_swapped", {
+      session_id: sessionId,
+      category,
+      merchant_slug: merchantSlug,
+      previous_product_id: current!.id,
+    });
     setSwapping(true);
     try {
       const res = await fetch(`${AGENTS_URL}/swap`, {
@@ -179,6 +196,16 @@ function ProductCard({
             target="_blank"
             rel="noopener noreferrer"
             className="btn-secondary"
+            onClick={() =>
+              capture("widget_product_viewed", {
+                session_id: sessionId,
+                product_id: current.id,
+                product_name: current.name,
+                price: current.price,
+                category,
+                merchant_slug: merchantSlug,
+              })
+            }
           >
             Ver
           </a>
@@ -223,6 +250,13 @@ export default function WidgetPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Init PostHog and track widget open
+  useEffect(() => {
+    initPostHog();
+    capture("widget_opened", { merchant_slug: merchantSlug });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, step]);
@@ -236,6 +270,7 @@ export default function WidgetPage() {
   }, []);
 
   function handleImageSelect(file: File) {
+    capture("widget_image_uploaded", { merchant_slug: merchantSlug });
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataUrl = e.target?.result as string;
@@ -258,6 +293,12 @@ export default function WidgetPage() {
     if (!input.trim() && !imageBase64) return;
     setLoading(true);
     setError(null);
+
+    capture("widget_message_sent", {
+      merchant_slug: merchantSlug,
+      has_image: !!imageBase64,
+      session_id: sessionId,
+    });
 
     const userMsg: Message = {
       role: "user",
@@ -292,6 +333,11 @@ export default function WidgetPage() {
 
       if (data.step === "clarifying" || data.step === "budget_only") {
         setStep(data.step);
+        capture("widget_clarification_needed", {
+          merchant_slug: merchantSlug,
+          step: data.step,
+          session_id: data.session_id,
+        });
         if (data.context?.available_groups) {
           const groups = await fetch(`${AGENTS_URL}/categories`).then((r) => r.json());
           setAvailableGroups(groups);
@@ -307,6 +353,12 @@ export default function WidgetPage() {
       } else if (data.step === "interactive" && data.combo) {
         setStep("interactive");
         setCombo(data.combo);
+        capture("widget_combo_shown", {
+          merchant_slug: merchantSlug,
+          session_id: data.session_id,
+          categories_count: Object.keys(data.combo).length,
+          categories: Object.keys(data.combo),
+        });
         setMessages((prev) => [
           ...prev,
           { role: "assistant", text: data.reply, combo: data.combo },
@@ -328,6 +380,15 @@ export default function WidgetPage() {
     setError(null);
     setStep("searching");
 
+    capture("widget_clarification_submitted", {
+      merchant_slug: merchantSlug,
+      session_id: pendingSessionId,
+      selected_groups: selectedGroups,
+      groups_count: selectedGroups.length,
+      has_budget: budget !== null,
+      budget_total: budget,
+    });
+
     try {
       const res = await fetch(`${AGENTS_URL}/clarify`, {
         method: "POST",
@@ -344,6 +405,13 @@ export default function WidgetPage() {
 
       setStep("interactive");
       setCombo(data.combo);
+      capture("widget_combo_shown", {
+        merchant_slug: merchantSlug,
+        session_id: pendingSessionId,
+        categories_count: Object.keys(data.combo).length,
+        categories: Object.keys(data.combo),
+        source: "clarification",
+      });
       setMessages((prev) => [
         ...prev,
         { role: "assistant", text: data.reply, combo: data.combo },
