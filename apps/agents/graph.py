@@ -83,6 +83,32 @@ class DesignState(TypedDict):
 
 # ── Helpers ────────────────────────────────────────────────
 
+# Términos en español → equivalentes en inglés usados en nombres de productos importados
+# Permite que "hongo" matchee "fungi", "terciopelo" matchee "velvet", etc.
+QUERY_SYNONYMS = {
+    "hongo":      "mushroom fungi",
+    "terciopelo": "velvet",
+    "mármol":     "marble",
+    "madera":     "wood",
+    "rattan":     "rattan wicker",
+    "lino":       "linen",
+    "boucle":     "boucle",
+    "cactus":     "cactus",
+    "macramé":    "macrame",
+}
+
+def enrich_query(text: str) -> str:
+    """Agrega sinónimos en inglés para términos en español que suelen aparecer
+    en nombres de productos importados, mejorando el match semántico."""
+    text_lower = text.lower()
+    extras = []
+    for es, en in QUERY_SYNONYMS.items():
+        if es in text_lower:
+            extras.append(en)
+    if extras:
+        return f"{text} {' '.join(extras)}"
+    return text
+
 def get_embedding(text: str) -> list:
     result = voyage_client.embed([text], model="voyage-3-lite", input_type="query")
     return result.embeddings[0]
@@ -236,13 +262,14 @@ def combo_search_node(state: DesignState) -> DesignState:
     # para preservar descripciones específicas ("forma de hongo", "color terracota", etc.)
     raw_intent = state.get("raw_intent", "")
     if len(categories) == 1:
-        query_text = raw_intent
+        query_text = enrich_query(raw_intent)
     else:
         query_text = " ".join(keywords)
         if style_tags:
             query_text += " " + " ".join(style_tags)
         if not query_text.strip():
             query_text = raw_intent or "decoración moderna"
+        query_text = enrich_query(query_text)
 
     print(f"[ComboSearch] Query: '{query_text}' | Categorías: {categories}")
 
