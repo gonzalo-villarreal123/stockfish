@@ -178,15 +178,17 @@ Respondé ÚNICAMENTE con JSON válido:
   "category_groups": []
 }}
 
-- keywords: términos para buscar (ej: "madera natural", "lámpara colgante", "textil beige")
-- style_tags: estilos (ej: "nórdico", "minimalista", "industrial", "bohemio")
+- keywords: los términos MÁS ESPECÍFICOS del pedido, preservando descripciones concretas (ej: "forma de hongo", "terciopelo verde", "pie de madera"). No generalices.
+- style_tags: estilos de decoración (ej: "nórdico", "minimalista", "industrial", "bohemio"). Vacío si no hay estilo general.
 - budget_total: presupuesto total en ARS si se menciona, null si no
-- category_groups: grupos mencionados EXPLÍCITAMENTE por el usuario. Solo incluir si el usuario nombra categorías concretas.
+- category_groups: SOLO el tipo de producto que el usuario pide comprar. Regla crítica: incluí ÚNICAMENTE el grupo del producto pedido, nunca porque "podría ser decorativo".
   Valores posibles: "muebles", "textiles", "iluminacion", "arte", "decoracion"
   Ejemplos:
     "quiero cuadros de arte para mi living" → ["arte"]
     "busco iluminación y textiles" → ["iluminacion", "textiles"]
-    "quiero un living nórdico moderno" → []  (estilo general, sin categorías explícitas)
+    "quiero una lámpara velador con forma de hongo" → ["iluminacion"]  (es una lámpara, no "decoracion" aunque sea decorativa)
+    "quiero un sillón y una alfombra" → ["muebles", "textiles"]
+    "quiero un living nórdico moderno" → []  (estilo general, sin producto concreto)
 
 Solo el JSON, sin texto adicional."""
 
@@ -230,11 +232,17 @@ def combo_search_node(state: DesignState) -> DesignState:
     if not categories:
         return {**state, "status": "error", "error": "No se seleccionaron categorías"}
 
-    query_text = " ".join(keywords)
-    if style_tags:
-        query_text += " " + " ".join(style_tags)
-    if not query_text.strip():
-        query_text = state.get("raw_intent", "decoración moderna")
+    # Si el usuario pidió un solo producto, usar raw_intent directamente
+    # para preservar descripciones específicas ("forma de hongo", "color terracota", etc.)
+    raw_intent = state.get("raw_intent", "")
+    if len(categories) == 1:
+        query_text = raw_intent
+    else:
+        query_text = " ".join(keywords)
+        if style_tags:
+            query_text += " " + " ".join(style_tags)
+        if not query_text.strip():
+            query_text = raw_intent or "decoración moderna"
 
     print(f"[ComboSearch] Query: '{query_text}' | Categorías: {categories}")
 
