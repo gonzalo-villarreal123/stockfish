@@ -222,6 +222,16 @@ create index if not exists waitlist_created_at_idx on waitlist(created_at);
 -- (usa service role key, no expuesto al cliente)
 
 -- ============================================================
+-- MIGRATION: STO-14 — Tienda Nube OAuth credentials
+-- Run this on existing databases (schema above already includes these columns
+-- for fresh installs via CREATE TABLE).
+-- ============================================================
+alter table merchants add column if not exists tn_store_id      text;
+alter table merchants add column if not exists tn_access_token  text;
+alter table merchants add column if not exists tn_scope         text;
+alter table merchants add column if not exists tn_token_at      timestamptz;
+
+-- ============================================================
 -- ROW LEVEL SECURITY (preparado para auth futura)
 -- ============================================================
 alter table design_sessions enable row level security;

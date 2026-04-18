@@ -30,6 +30,7 @@ from db import (
     create_scraping_job,
     update_scraping_job,
 )
+from embeddings import generate_embeddings_for_merchant
 from datetime import datetime
 
 router = APIRouter(prefix="/tn", tags=["tiendanube"])
@@ -180,6 +181,14 @@ async def _run_sync(merchant_slug: str):
         "completed_at": datetime.now().isoformat(),
     })
     print(f"[TN sync] ✅ '{merchant_slug}': {added}/{found} productos guardados")
+
+    # Generate embeddings for the newly upserted products so they're immediately searchable
+    if added > 0:
+        print(f"[TN sync] Generando embeddings para '{merchant_slug}'...")
+        try:
+            await generate_embeddings_for_merchant(merchant_id)
+        except Exception as e:
+            print(f"[TN sync] ⚠ Error generando embeddings (productos guardados, sync no falla): {e}")
 
 
 # ── Status ─────────────────────────────────────────────────
