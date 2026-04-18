@@ -10,13 +10,18 @@ create extension if not exists vector;
 -- MERCHANTS
 -- ============================================================
 create table merchants (
-  id          uuid primary key default gen_random_uuid(),
-  slug        text unique not null,
-  name        text not null,
-  base_url    text not null,
-  platform    text not null default 'tiendanube',
-  active      boolean not null default true,
-  created_at  timestamptz not null default now()
+  id               uuid primary key default gen_random_uuid(),
+  slug             text unique not null,
+  name             text not null,
+  base_url         text not null,
+  platform         text not null default 'tiendanube',
+  active           boolean not null default true,
+  -- Tienda Nube OAuth credentials (set after merchant installs the TN app)
+  tn_store_id      text,          -- TN numeric user_id (e.g. "12345")
+  tn_access_token  text,          -- OAuth bearer token
+  tn_scope         text,          -- granted scopes
+  tn_token_at      timestamptz,   -- when the token was last issued
+  created_at       timestamptz not null default now()
 );
 
 -- Seed: los 4 merchants target del MVP
@@ -31,6 +36,8 @@ insert into merchants (slug, name, base_url) values
 insert into merchants (slug, name, base_url) values
   ('altorancho',   'Alto Rancho',        'https://altorancho.com'),
   ('solpalou',     'Sol Palou Deco',     'https://www.solpaloudeco.com.ar'),
+  ('lufe',         'Lufe',               'https://lufe.com.ar'),
+  ('nordika',      'Nordika',            'https://nordika.com.ar'),
   ('boden',        'Boden',              'https://boden.com.ar'),
   ('blest',        'Blest',              'https://blest.com.ar'),
   ('cosasminimas', 'Cosas Mínimas',      'https://cosasminimas.com.ar'),

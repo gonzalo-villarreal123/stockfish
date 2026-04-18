@@ -171,3 +171,53 @@ async def update_scraping_job(job_id: str, updates: dict):
             json=updates
         )
         r.raise_for_status()
+
+
+# ── Tienda Nube OAuth credentials ──────────────────────────
+
+async def save_tn_credentials(merchant_id: str, store_id: str, access_token: str, scope: str = ""):
+    """Persists TN OAuth credentials on the merchant row."""
+    from datetime import datetime, timezone
+    updates = {
+        "tn_store_id":     store_id,
+        "tn_access_token": access_token,
+        "tn_scope":        scope,
+        "tn_token_at":     datetime.now(timezone.utc).isoformat(),
+    }
+    async with httpx.AsyncClient() as client:
+        r = await client.patch(
+            rest("merchants"),
+            headers=HEADERS,
+            params={"id": f"eq.{merchant_id}"},
+            json=updates
+        )
+        r.raise_for_status()
+
+
+async def get_tn_credentials(merchant_slug: str) -> Optional[dict]:
+    """
+    Returns the TN credentials for a merchant slug, or None if not yet authorized.
+    Result: { merchant_id, base_url, tn_store_id, tn_access_token, tn_scope }
+    """
+    async with httpx.AsyncClient() as client:
+        r = await client.get(
+            rest("merchants"),
+            headers=HEADERS,
+            params={
+                "slug":          f"eq.{merchant_slug}",
+                "select":        "id,base_url,tn_store_id,tn_access_token,tn_scope",
+                "limit":         "1",
+            }
+        )
+        r.raise_for_status()
+        data = r.json()
+    if not data or not data[0].get("tn_access_token"):
+        return None
+    row = data[0]
+    return {
+        "merchant_id":    row["id"],
+        "base_url":       row["base_url"],
+        "tn_store_id":    row["tn_store_id"],
+        "tn_access_token": row["tn_access_token"],
+        "tn_scope":       row.get("tn_scope", ""),
+    }

@@ -14,6 +14,18 @@ from db import get_merchant_by_slug, upsert_product, create_scraping_job, update
 from datetime import datetime
 
 
+# ── Merchants registrados (Tienda Nube AR) ─────────────────
+ALL_MERCHANTS = [
+    # Batch 1 (MVP)
+    "diderot", "garbo", "holyhaus", "pacify",
+    # Batch 2 (STO-2)
+    "altorancho", "solpalou", "lufe", "nordika",
+    "boden", "blest", "cosasminimas", "folia", "mink",
+    "ruda", "sienna", "petite", "bazarokidoki", "tukee",
+    "laforma", "plataforma5", "decolovers", "almacenlobos",
+]
+
+
 # ── Categorías de arte & decoración ───────────────────────
 CATEGORY_KEYWORDS = {
     "cuadro":    ["cuadro", "print", "poster", "lámina", "litografía", "fotografía", "arte"],
@@ -340,8 +352,18 @@ async def scrape_merchant(merchant_slug: str, limit: Optional[int] = None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--merchant", required=True, choices=["diderot", "garbo", "holyhaus", "pacify", "altorancho", "solpalou"])
+    parser.add_argument("--merchant", required=False, choices=ALL_MERCHANTS,
+                        help="Slug del merchant a scrapear. Omitir para scrapear todos.")
+    parser.add_argument("--all", action="store_true", help="Scrapear todos los merchants activos")
     parser.add_argument("--limit", type=int, default=None)
     args = parser.parse_args()
 
-    asyncio.run(scrape_merchant(args.merchant, args.limit))
+    if args.all:
+        async def scrape_all():
+            for slug in ALL_MERCHANTS:
+                await scrape_merchant(slug, args.limit)
+        asyncio.run(scrape_all())
+    elif args.merchant:
+        asyncio.run(scrape_merchant(args.merchant, args.limit))
+    else:
+        parser.error("Especificar --merchant SLUG o usar --all")

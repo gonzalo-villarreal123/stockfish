@@ -14,6 +14,7 @@ from typing import Optional, List, Dict
 from dotenv import load_dotenv
 from graph import run_intake, run_combo_search, swap_product, generic_search_by_category, analyze_image
 from db import create_session, get_session, update_session, get_session_by_token, get_product_categories, get_merchant_by_slug
+from tn_router import router as tn_router
 
 load_dotenv()
 
@@ -25,6 +26,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(tn_router)
 
 anthropic_client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
