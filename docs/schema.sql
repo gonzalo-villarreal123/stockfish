@@ -26,6 +26,27 @@ insert into merchants (slug, name, base_url) values
   ('holyhaus',  'Holy Haus', 'https://holyhaus.com.ar'),
   ('pacify',    'Pacify',    'https://pacify.com.ar');
 
+-- Batch 2: expansión a 20+ tiendas Tienda Nube argentinas (STO-2)
+-- Verificadas con check_platform.py antes de activar
+insert into merchants (slug, name, base_url) values
+  ('altorancho',   'Alto Rancho',        'https://altorancho.com'),
+  ('solpalou',     'Sol Palou Deco',     'https://www.solpaloudeco.com.ar'),
+  ('boden',        'Boden',              'https://boden.com.ar'),
+  ('blest',        'Blest',              'https://blest.com.ar'),
+  ('cosasminimas', 'Cosas Mínimas',      'https://cosasminimas.com.ar'),
+  ('folia',        'Folia',              'https://folia.com.ar'),
+  ('mink',         'Mink',              'https://mink.com.ar'),
+  ('ruda',         'Ruda',               'https://ruda.com.ar'),
+  ('sienna',       'Sienna',             'https://siennaarg.com.ar'),
+  ('petite',       'Petite',             'https://petite.com.ar'),
+  ('bazarokidoki', 'Bazar Okidoki',      'https://bazarokidoki.com.ar'),
+  ('tukee',        'Tukee',              'https://tukee.com.ar'),
+  ('laforma',      'La Forma',           'https://laforma.com.ar'),
+  ('plataforma5',  'Plataforma 5',       'https://plataforma5.com.ar'),
+  ('decolovers',   'Deco Lovers',        'https://decolovers.com.ar'),
+  ('almacenlobos', 'Almacén de Lobos',   'https://almacendelobos.com.ar')
+on conflict (slug) do nothing;
+
 -- ============================================================
 -- PRODUCTS
 -- ============================================================
@@ -172,6 +193,26 @@ begin
   limit limit_n;
 end;
 $$;
+
+-- ============================================================
+-- WAITLIST — Captura de emails de la campaña de lanzamiento
+-- ============================================================
+create table if not exists waitlist (
+  id            uuid primary key default gen_random_uuid(),
+  email         text unique not null,
+  utm_source    text,
+  utm_medium    text,
+  utm_campaign  text,
+  utm_content   text,
+  referral_code text,
+  created_at    timestamptz not null default now()
+);
+
+create index if not exists waitlist_utm_campaign_idx on waitlist(utm_campaign);
+create index if not exists waitlist_created_at_idx on waitlist(created_at);
+
+-- Sin RLS por ahora: solo se escribe desde el server-side API route
+-- (usa service role key, no expuesto al cliente)
 
 -- ============================================================
 -- ROW LEVEL SECURITY (preparado para auth futura)
