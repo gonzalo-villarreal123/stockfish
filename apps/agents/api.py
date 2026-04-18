@@ -3,6 +3,7 @@ API FastAPI de Stockfish.
 Flujo: intake → clarificación visual (chips + slider) → combo search → swap
 """
 import os
+import re
 import uuid
 import json
 import anthropic
@@ -85,11 +86,12 @@ GROUP_KEYWORDS = {
 }
 
 def detect_groups_from_text(text: str) -> List[str]:
-    """Detecta grupos de categorías mencionados explícitamente en el texto."""
+    """Detecta grupos de categorías mencionados explícitamente en el texto.
+    Usa word boundaries para evitar falsos positivos (ej: 'vela' en 'velador')."""
     text_lower = text.lower()
     found = []
     for group_id, keywords in GROUP_KEYWORDS.items():
-        if any(kw in text_lower for kw in keywords):
+        if any(re.search(r'\b' + re.escape(kw) + r'\b', text_lower) for kw in keywords):
             found.append(group_id)
     return found
 
