@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: stockfish-api
+    runtime: docker
+    dockerfilePath: apps/agents/Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: VOYAGE_API_KEY
+        sync: false
+      - key: SUPABASE_REST_URL
+        value: https://malbjvnmqhdalttcvroi.supabase.co
