@@ -6,8 +6,9 @@ import os
 import re
 import uuid
 import json
+import subprocess
 import anthropic
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Dict
@@ -15,6 +16,7 @@ from dotenv import load_dotenv
 from graph import run_intake, run_combo_search, swap_product, generic_search_by_category, analyze_image
 from db import create_session, get_session, update_session, get_session_by_token, get_product_categories, get_merchant_by_slug
 from tn_router import router as tn_router
+from scraper import ALL_MERCHANTS
 
 load_dotenv()
 
@@ -431,6 +433,76 @@ async def get_session_endpoint(session_id: str):
     if not session:
         raise HTTPException(status_code=404, detail="Sesión no encontrada")
     return session
+
+
+@app.post("/scrape/{merchant_slug}")
+async def trigger_scrape(merchant_slug: str, background_tasks: BackgroundTasks, limit: Optional[int] = None):
+    """
+    Lanza el scraper HTML (playwright) para un merchant en segundo plano.
+    Requiere que el entorno tenga playwright instalado con los browsers.
+    Útil para workers Render separados o entornos locales.
+    """
+    if merchant_slug not in ALL_MERCHANTS:
+        raise HTTPException(status_code=404, detail=f"Merchant '{merchant_slug}' no registrado. Opciones: {ALL_MERCHANTS}")
+
+    # Verificar que el merchant exista en la DB
+    m = await get_merchant_by_slug(merchant_slug)
+    if not m:
+        raise HTTPException(status_code=404, detail=f"Merchant '{merchant_slug}' no encontrado en la base de datos")
+
+    def _run_scraper():
+        cmd = ["python", "scraper.py", "--merchant", merchant_slug]
+        if limit:
+            cmd += ["--limit", str(limit)]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"[scrape] Error en {merchant_slug}: {result.stderr[:500]}")
+        else:
+            print(f"[scrape] Completado {merchant_slug}: {result.stdout[-200:]}")
+
+    background_tasks.add_task(_run_scraper)
+    return {"ok": True, "merchant": merchant_slug, "message": "Scraping iniciado en segundo plano"}
+
+
+@app.post("/scrape")
+async def trigger_scrape_all(background_tasks: BackgroundTasks, limit: Optional[int] = None):
+    """Lanza el scraper para TODOS los merchants registrados en secuencia."""
+    def _run_all():
+        for slug in ALL_MERCHANTS:
+            cmd = ["python", "scraper.py", "--merchant", slug]
+            if limit:
+                cmd += ["--limit", str(limit)]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            status = "OK" if result.returncode == 0 else "ERR"
+            print(f"[scrape-all] {slug}: {status}")
+
+    background_tasks.add_task(_run_all)
+    return {"ok": True, "merchants": ALL_MERCHANTS, "message": f"Scraping de {len(ALL_MERCHANTS)} tiendas iniciado en segundo plano"}
+
+
+@app.get("/merchants")
+async def list_merchants():
+    """Lista todos los merchants registrados con conteo de productos."""
+    import httpx
+    SUPABASE_URL = os.getenv("SUPABASE_REST_URL") or os.getenv("SUPABASE_PROJECT_URL") or os.getenv("SUPABASE_URL", "")
+    KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    H = {"apikey": KEY, "Authorization": f"Bearer {KEY}"}
+    async with httpx.AsyncClient() as c:
+        r = await c.get(f"{SUPABASE_URL}/rest/v1/merchants", headers=H,
+                        params={"select": "slug,name,base_url,active", "order": "created_at.asc"})
+        if r.status_code != 200:
+            raise HTTPException(status_code=502, detail="Error consultando merchants")
+        merchants = r.json()
+        r2 = await c.get(f"{SUPABASE_URL}/rest/v1/products", headers=H,
+                         params={"select": "merchants!inner(slug),in_stock", "limit": "5000"})
+        from collections import Counter
+        all_products = r2.json()
+        counts = Counter(p["merchants"]["slug"] for p in all_products)
+        stock_counts = Counter(p["merchants"]["slug"] for p in all_products if p["in_stock"])
+    return [
+        {**m, "product_count": counts.get(m["slug"], 0), "in_stock_count": stock_counts.get(m["slug"], 0)}
+        for m in merchants
+    ]
 
 
 @app.get("/share/{share_token}")

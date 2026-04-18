@@ -237,29 +237,62 @@ async def scrape_product_page(page, url: str) -> Optional[dict]:
         return None
 
 
+async def _collect_links_from_page(page, base_url: str, list_url: str, path_prefix: str) -> set[str]:
+    """Carga una URL de listado y extrae los links de productos con el prefijo dado."""
+    await page.goto(list_url, wait_until="domcontentloaded", timeout=15000)
+    await page.wait_for_timeout(800)
+    content = await page.content()
+    soup = BeautifulSoup(content, "html.parser")
+
+    found = set()
+    selector = f"a[href*='{path_prefix}/']"
+    for link in soup.select(selector):
+        href = link.get("href", "")
+        if f"{path_prefix}/" not in href:
+            continue
+        if href.endswith(path_prefix) or href.endswith(f"{path_prefix}/"):
+            continue
+        full_url = href if href.startswith("http") else f"{base_url}{href}"
+        full_url = full_url.split("?")[0].rstrip("/")
+        # Sólo URLs de producto (no categorías): exactamente un segmento tras el prefijo
+        path = full_url.replace(base_url, "")
+        if path.count("/") == 2:
+            found.add(full_url)
+    return found
+
+
 async def get_product_urls(page, base_url: str, limit: Optional[int] = None) -> list[str]:
+    """
+    Enumera todos los productos de una tienda Tienda Nube.
+    Intenta /productos primero (TN por defecto) y cae a /tienda si no encuentra nada,
+    cubriendo tiendas que personalizan la ruta del catálogo.
+    """
+    # Detectar qué prefijo de catálogo usa la tienda
+    PATH_PREFIXES = ["/productos", "/tienda"]
+    active_prefix = None
+
+    for prefix in PATH_PREFIXES:
+        probe_url = f"{base_url}{prefix}?page=1"
+        try:
+            sample = await _collect_links_from_page(page, base_url, probe_url, prefix)
+            if sample:
+                active_prefix = prefix
+                print(f"  Catálogo detectado en: {prefix}")
+                break
+        except Exception:
+            continue
+
+    if not active_prefix:
+        print(f"  ⚠ No se encontró catálogo en {base_url} (probado: {PATH_PREFIXES})")
+        return []
+
     urls = set()
     page_num = 1
 
     while True:
+        list_url = f"{base_url}{active_prefix}?page={page_num}"
         try:
-            list_url = f"{base_url}/productos?page={page_num}"
-            await page.goto(list_url, wait_until="domcontentloaded", timeout=15000)
-            await page.wait_for_timeout(800)
-            content = await page.content()
-            soup = BeautifulSoup(content, "html.parser")
-
-            product_links = soup.select("a[href*='/productos/']")
-            new_urls = set()
-            for link in product_links:
-                href = link.get("href", "")
-                if "/productos/" in href and not href.endswith("/productos/") and not href.endswith("/productos"):
-                    full_url = href if href.startswith("http") else f"{base_url}{href}"
-                    full_url = full_url.split("?")[0].rstrip("/")
-                    # Asegurarse que es un producto y no una categoría
-                    path = full_url.replace(base_url, "")
-                    if path.count("/") == 2:  # /productos/slug
-                        new_urls.add(full_url)
+            new_urls = await _collect_links_from_page(page, base_url, list_url, active_prefix)
 
             if not new_urls or new_urls.issubset(urls):
                 break
