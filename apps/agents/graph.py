@@ -97,33 +97,52 @@ QUERY_SYNONYMS = {
     "macramé":    "macrame",
 }
 
-COLOR_MATERIAL_WORDS = {
-    "blanco", "negro", "natural", "beige", "gris", "arena", "crema",
-    "verde", "azul", "rojo", "amarillo", "naranja", "rosa", "lila", "violeta",
-    "madera", "miel", "nogal", "roble", "pino", "bambú", "bambu", "teca",
-    "dorado", "plateado", "cobre", "bronce", "cromado", "claro", "oscuro",
-    "white", "black", "grey", "gray", "gold", "silver", "copper", "nude",
-    "pequeño", "chico", "mediano", "grande", "xl", "xs",
-}
-
 def is_variant(name1: str, name2: str) -> bool:
-    """True si dos productos son variantes (mismo modelo, distinto color/material/tamaño)."""
-    def normalize(name: str) -> str:
-        name = name.lower().strip()
-        tokens = re.split(r"[\s\-_/|,\.]+", name)
-        tokens = [t for t in tokens if t and t not in COLOR_MATERIAL_WORDS and not t.isdigit()]
-        return " ".join(tokens)
+    """True si dos productos son variantes del mismo modelo (distinto color/material/tamaño).
 
-    n1, n2 = normalize(name1), normalize(name2)
+    Estrategia: prefijo compartido continuo. Si las primeras 2+ palabras coinciden
+    y cubren la mayor parte del nombre más corto → mismo modelo, diferente variante.
+    Esto es más robusto que una lista de colores porque funciona con cualquier naming
+    convention ("Carbon", "Oak", "Sage", "Rust", etc.).
+    """
+    def clean(name: str) -> str:
+        name = name.lower().strip()
+        name = re.sub(r"[^\w\s]", " ", name)
+        return re.sub(r"\s+", " ", name).strip()
+
+    n1, n2 = clean(name1), clean(name2)
     if not n1 or not n2:
         return False
+
+    # Match exacto o uno contiene al otro
     if n1 == n2 or n1 in n2 or n2 in n1:
         return True
-    w1, w2 = set(n1.split()), set(n2.split())
-    if not w1 or not w2:
-        return False
-    jaccard = len(w1 & w2) / len(w1 | w2)
-    return jaccard >= 0.65
+
+    w1, w2 = n1.split(), n2.split()
+    min_len = min(len(w1), len(w2))
+
+    # Prefijo continuo compartido
+    if min_len >= 2:
+        prefix = 0
+        for a, b in zip(w1, w2):
+            if a == b:
+                prefix += 1
+            else:
+                break
+        # 2+ palabras de prefijo que cubren ≥55% del nombre más corto → variantes
+        if prefix >= 2 and prefix >= min_len * 0.55:
+            return True
+
+    # Alta similitud de palabras (Jaccard sin stopwords)
+    STOPWORDS = {"de", "la", "el", "los", "las", "un", "una", "y", "en", "con", "para", "del"}
+    s1 = set(w1) - STOPWORDS
+    s2 = set(w2) - STOPWORDS
+    if s1 and s2:
+        jaccard = len(s1 & s2) / len(s1 | s2)
+        if jaccard >= 0.72:
+            return True
+
+    return False
 
 
 def enrich_query(text: str) -> str:

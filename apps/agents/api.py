@@ -420,8 +420,8 @@ async def swap(body: SwapRequest):
         current_product_name=body.current_product_name,
     )
 
-    # Fallback genérico si no hay resultado con el estilo
-    if not product:
+    # Fallback genérico solo para modo "product" (no para "color": sin variantes = None)
+    if not product and (body.swap_mode or "product") == "product":
         product = await generic_search_by_category(
             category=body.category,
             excluded_ids=body.excluded_ids,
