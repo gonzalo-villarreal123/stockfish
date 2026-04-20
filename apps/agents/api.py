@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict
 from dotenv import load_dotenv
 from graph import run_intake, run_combo_search, swap_product, generic_search_by_category, analyze_image
-from db import create_session, upsert_session, get_session, update_session, get_session_by_token, get_product_categories, get_merchant_by_slug, save_search_event
+from db import create_session, upsert_session, get_session, update_session, get_session_by_token, get_product_categories, get_merchant_by_slug, save_search_event, persist_session_state, load_session_state
 from tn_router import router as tn_router
 from scraper import ALL_MERCHANTS
 
@@ -48,6 +48,24 @@ _available_groups_cache: Optional[List[str]] = None
 
 # Cache de merchants slug → id
 _merchant_id_cache: Dict[str, str] = {}
+
+async def get_session_state(session_id: str) -> dict:
+    """Devuelve el estado de sesión: primero desde memoria, luego desde Supabase."""
+    if session_id in _sessions:
+        return _sessions[session_id]
+    state = await load_session_state(session_id)
+    if state:
+        _sessions[session_id] = state  # restaurar en memoria
+        print(f"[Session] Restaurada desde Supabase: {session_id[:8]}")
+    return state or {}
+
+
+async def set_session_state(session_id: str, state: dict):
+    """Guarda el estado en memoria y dispara la persistencia a Supabase en background."""
+    import asyncio
+    _sessions[session_id] = state
+    asyncio.create_task(persist_session_state(session_id, state))
+
 
 async def resolve_merchant_id(slug: str) -> Optional[str]:
     """Resuelve un merchant slug a su UUID. Cachea el resultado."""
@@ -207,7 +225,7 @@ async def chat(body: ChatMessage):
     Acepta texto, imagen (base64) o ambos.
     """
     session_id = body.session_id or str(uuid.uuid4())
-    session = _sessions.get(session_id, {})
+    session = await get_session_state(session_id)
     step = session.get("step", "intake")
 
     # Resolver merchant_slug → id
@@ -240,7 +258,7 @@ async def chat(body: ChatMessage):
             if g in CATEGORY_GROUPS and g in available_groups
         ]
 
-        _sessions[session_id] = {
+        await set_session_state(session_id, {
             "step": "awaiting_clarification",
             "raw_intent": user_message,
             "style_keywords": intake_result.get("style_keywords", []),
@@ -249,7 +267,7 @@ async def chat(body: ChatMessage):
             "pre_selected_groups": detected_groups,
             "merchant_id": merchant_id,
             "merchant_slug": body.merchant_slug,
-        }
+        })
 
         style_tags = intake_result.get("style_tags", [])
         style_keywords = intake_result.get("style_keywords", [])
@@ -303,7 +321,7 @@ async def clarify(body: ClarifyRequest):
     Paso 2: recibe categorías seleccionadas + presupuesto (desde los widgets)
     y ejecuta el combo search.
     """
-    session = _sessions.get(body.session_id)
+    session = await get_session_state(body.session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Sesión no encontrada. Iniciá una nueva búsqueda.")
 
@@ -339,13 +357,13 @@ async def clarify(body: ClarifyRequest):
 
     combo = combo_result.get("combo", {})
 
-    _sessions[body.session_id] = {
+    await set_session_state(body.session_id, {
         **session,
         "step": "interactive",
         "selected_categories": categories,
         "budget_total": budget,
         "combo": combo,
-    }
+    })
 
     # Guardar search event para insights
     try:
@@ -401,7 +419,7 @@ async def clarify(body: ClarifyRequest):
 @app.post("/swap", response_model=SwapResponse)
 async def swap(body: SwapRequest):
     """Reemplaza el producto de una categoría por la siguiente mejor opción."""
-    session = _sessions.get(body.session_id, {})
+    session = await get_session_state(body.session_id)
     style_keywords = session.get("style_keywords", [])
     style_tags = session.get("style_tags", [])
 
@@ -435,7 +453,7 @@ async def swap(body: SwapRequest):
             "alternative": None,
             "no_stock": False,
         }
-        _sessions[body.session_id] = session
+        await set_session_state(body.session_id, session)
 
     return SwapResponse(product=product)
 

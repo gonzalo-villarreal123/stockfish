@@ -149,6 +149,33 @@ async def update_session(session_id: str, updates: dict) -> dict:
         return data[0] if data else {}
 
 
+async def persist_session_state(session_id: str, state: dict):
+    """Guarda el estado completo de la sesión en Supabase para sobrevivir reinicios del servidor."""
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            rest("design_sessions"),
+            headers={**HEADERS, "Prefer": "resolution=merge-duplicates,return=minimal"},
+            json={"id": session_id, "session_state": state},
+        )
+        if r.status_code not in (200, 201, 204):
+            print(f"[persist_session_state] Error: {r.status_code}")
+
+
+async def load_session_state(session_id: str) -> Optional[dict]:
+    """Recupera el estado de sesión desde Supabase (usado al reiniciar el servidor)."""
+    async with httpx.AsyncClient() as client:
+        r = await client.get(
+            rest("design_sessions"),
+            headers=HEADERS,
+            params={"id": f"eq.{session_id}", "select": "session_state", "limit": "1"},
+        )
+        r.raise_for_status()
+        data = r.json()
+        if data and data[0].get("session_state"):
+            return data[0]["session_state"]
+        return None
+
+
 async def get_session_by_token(share_token: str) -> Optional[dict]:
     async with httpx.AsyncClient() as client:
         r = await client.get(
