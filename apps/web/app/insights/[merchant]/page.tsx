@@ -130,6 +130,23 @@ export default function InsightsPage() {
   const [data, setData] = useState<InsightsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const res = await fetch(`/api/insights/${merchant}/export?days=${days}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `stockfish-${merchant}-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -166,8 +183,8 @@ export default function InsightsPage() {
               {merchant}
             </div>
           </div>
-          {/* Period selector */}
-          <div style={{ display: "flex", gap: 6 }}>
+          {/* Period selector + export */}
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             {PERIOD_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
@@ -187,6 +204,24 @@ export default function InsightsPage() {
                 {opt.label}
               </button>
             ))}
+            <button
+              onClick={handleExport}
+              disabled={exporting || !data}
+              style={{
+                marginLeft: 8,
+                padding: "6px 16px",
+                borderRadius: 20,
+                border: "1px solid #333",
+                cursor: exporting || !data ? "default" : "pointer",
+                fontSize: 13,
+                fontWeight: 500,
+                background: "transparent",
+                color: exporting || !data ? "#555" : "#ccc",
+                transition: "all 0.15s",
+              }}
+            >
+              {exporting ? "Exportando..." : "↓ Exportar CSV"}
+            </button>
           </div>
         </div>
       </div>
