@@ -7,7 +7,6 @@ import json
 import re
 import argparse
 from typing import Optional
-from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
 from models import ScrapedProduct, ProductDimensions
 from db import get_merchant_by_slug, upsert_product, create_scraping_job, update_scraping_job
@@ -357,6 +356,7 @@ async def scrape_merchant(merchant_slug: str, limit: Optional[int] = None):
     products_added = 0
 
     try:
+        from playwright.async_api import async_playwright
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
             context = await browser.new_context(
