@@ -73,7 +73,7 @@ create table products (
   attributes      jsonb not null default '{}',   -- color, material, estilo, etc.
   dimensions      jsonb,                         -- { width_cm, height_cm, depth_cm, weight_kg }
   in_stock        boolean not null default true,
-  embedding       vector(1536),                  -- Para búsqueda semántica
+  embedding       vector(512),                   -- Voyage AI voyage-3-lite (512 dims)
   scraped_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now(),
 
@@ -153,7 +153,7 @@ create table scraping_jobs (
 -- Llamada desde StyleRAGAgent
 -- ============================================================
 create or replace function search_products(
-  query_embedding   vector(1536),
+  query_embedding   vector(512),
   category_filter   text    default null,
   merchant_filter   uuid[]  default null,
   min_price         numeric default null,
@@ -230,6 +230,69 @@ alter table merchants add column if not exists tn_store_id      text;
 alter table merchants add column if not exists tn_access_token  text;
 alter table merchants add column if not exists tn_scope         text;
 alter table merchants add column if not exists tn_token_at      timestamptz;
+
+-- ============================================================
+-- MIGRATION: STO-14 — Fix embedding dimension (1536 → 512)
+-- voyage-3-lite returns 512-dim vectors, not 1536.
+-- pgvector cannot change vector dimensions in-place; must drop + recreate.
+-- WARNING: this nullifies all existing embeddings — re-run embeddings.py after.
+-- ============================================================
+drop index if exists products_embedding_idx;
+alter table products drop column if exists embedding;
+alter table products add column embedding vector(512);
+create index products_embedding_idx on products
+  using ivfflat (embedding vector_cosine_ops)
+  with (lists = 100);
+
+-- Also update the search function signature to match the new dimension
+create or replace function search_products(
+  query_embedding   vector(512),
+  category_filter   text    default null,
+  merchant_filter   uuid[]  default null,
+  min_price         numeric default null,
+  max_price         numeric default null,
+  limit_n           integer default 10
+)
+returns table (
+  id              uuid,
+  name            text,
+  price           numeric,
+  primary_image   text,
+  url             text,
+  category        text,
+  merchant_slug   text,
+  attributes      jsonb,
+  dimensions      jsonb,
+  similarity      float
+)
+language plpgsql
+as $$
+begin
+  return query
+  select
+    p.id,
+    p.name,
+    p.price,
+    p.primary_image,
+    p.url,
+    p.category,
+    m.slug        as merchant_slug,
+    p.attributes,
+    p.dimensions,
+    1 - (p.embedding <=> query_embedding) as similarity
+  from products p
+  join merchants m on m.id = p.merchant_id
+  where
+    p.in_stock = true
+    and p.embedding is not null
+    and (category_filter is null or p.category = category_filter)
+    and (merchant_filter is null or m.id = any(merchant_filter))
+    and (min_price is null or p.price >= min_price)
+    and (max_price is null or p.price <= max_price)
+  order by p.embedding <=> query_embedding
+  limit limit_n;
+end;
+$$;
 
 -- ============================================================
 -- ROW LEVEL SECURITY (preparado para auth futura)

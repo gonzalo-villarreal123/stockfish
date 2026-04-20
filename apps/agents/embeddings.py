@@ -22,10 +22,9 @@ HEADERS = {
 
 voyage = voyageai.Client(api_key=VOYAGE_API_KEY)
 
-# Voyage AI: modelo de embeddings (1024 dimensiones)
-# Nota: el schema usa vector(1536) — actualizaremos el schema a 1024
+# voyage-3-lite: 512 dims, bajo costo — suficiente para búsqueda de decoración
+# El schema usa vector(512) para coincidir
 EMBED_MODEL = "voyage-3-lite"
-EMBED_DIM = 512
 BATCH_SIZE = 128
 
 
