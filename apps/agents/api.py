@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict
 from dotenv import load_dotenv
 from graph import run_intake, run_combo_search, swap_product, generic_search_by_category, analyze_image
-from db import create_session, upsert_session, get_session, update_session, get_session_by_token, get_product_categories, get_merchant_by_slug
+from db import create_session, upsert_session, get_session, update_session, get_session_by_token, get_product_categories, get_merchant_by_slug, save_search_event
 from tn_router import router as tn_router
 from scraper import ALL_MERCHANTS
 
@@ -344,6 +344,24 @@ async def clarify(body: ClarifyRequest):
         "budget_total": budget,
         "combo": combo,
     }
+
+    # Guardar search event para insights
+    try:
+        no_stock_cats = [cat for cat, data in combo.items() if data.get("no_stock")]
+        results_count = len([cat for cat, data in combo.items() if not data.get("no_stock")])
+        await save_search_event({
+            "merchant_slug": body.merchant_slug or session.get("merchant_slug"),
+            "merchant_id": str(merchant_id) if merchant_id else None,
+            "session_id": body.session_id,
+            "query": session.get("raw_intent", ""),
+            "categories": categories,
+            "category_groups": body.selected_groups,
+            "budget_total": budget,
+            "results_count": results_count,
+            "no_stock_categories": no_stock_cats,
+        })
+    except Exception as e:
+        print(f"[clarify] No se pudo guardar search_event: {e}")
 
     # Persist combo to Supabase so it can be shared via share_token
     share_token = None

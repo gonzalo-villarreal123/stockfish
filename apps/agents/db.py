@@ -207,6 +207,33 @@ async def save_tn_credentials(merchant_id: str, store_id: str, access_token: str
         r.raise_for_status()
 
 
+async def save_search_event(event: dict):
+    """Persiste una búsqueda procesada para el dashboard de insights."""
+    async with httpx.AsyncClient() as client:
+        r = await client.post(rest("search_events"), headers=HEADERS, json=event)
+        if r.status_code not in (200, 201):
+            print(f"[save_search_event] Error: {r.status_code} {r.text[:200]}")
+
+
+async def get_search_events(merchant_slug: str, days: int = 30) -> list:
+    """Devuelve los search_events de un merchant en los últimos N días."""
+    from datetime import datetime, timezone, timedelta
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    async with httpx.AsyncClient() as client:
+        r = await client.get(
+            rest("search_events"),
+            headers=HEADERS,
+            params={
+                "merchant_slug": f"eq.{merchant_slug}",
+                "created_at": f"gte.{since}",
+                "order": "created_at.desc",
+                "limit": "1000",
+            }
+        )
+        r.raise_for_status()
+        return r.json()
+
+
 async def get_tn_credentials(merchant_slug: str) -> Optional[dict]:
     """
     Returns the TN credentials for a merchant slug, or None if not yet authorized.
