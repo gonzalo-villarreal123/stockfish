@@ -95,17 +95,21 @@ function ProductCard({
 }) {
   const [current, setCurrent] = useState<Product | null>(item.best);
   const [swapping, setSwapping] = useState<"product" | "color" | null>(null);
-  const [excludedIds, setExcludedIds] = useState<string[]>(
+  const [addedToCart, setAddedToCart] = useState(false);
+
+  // Listas separadas por modo para no interferir entre sí
+  // allSeenIds: todos los productos vistos → se usa para excluir en modo "product"
+  // colorSeenIds: variantes vistas del producto actual → se resetea al cambiar de producto
+  const [allSeenIds, setAllSeenIds] = useState<string[]>(
     item.best ? [item.best.id] : []
   );
+  const [colorSeenIds, setColorSeenIds] = useState<string[]>([]);
   const [noMoreColors, setNoMoreColors] = useState(false);
-
-  const [addedToCart, setAddedToCart] = useState(false);
+  const [noMoreProducts, setNoMoreProducts] = useState(false);
 
   if (!current || item.no_stock) return null;
 
   async function handleAddToCart() {
-    // Trackear en PostHog
     capture("widget_add_to_cart", {
       session_id: sessionId,
       product_id: current!.id,
@@ -114,8 +118,6 @@ function ProductCard({
       category,
       merchant_slug: merchantSlug,
     });
-
-    // Trackear en nuestro backend
     fetch(`${AGENTS_URL}/track`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -129,13 +131,7 @@ function ProductCard({
         merchant_slug: merchantSlug,
       }),
     }).catch(() => {});
-
-    // Notificar al parent (embed.js) para que maneje el carrito
-    window.parent.postMessage(
-      { type: "sf-add-to-cart", product: current },
-      "*"
-    );
-
+    window.parent.postMessage({ type: "sf-add-to-cart", product: current }, "*");
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2000);
   }
@@ -149,6 +145,14 @@ function ProductCard({
       swap_mode: mode,
     });
     setSwapping(mode);
+
+    // "product": excluir todos los productos ya vistos
+    // "color": excluir solo el actual + variantes de color ya vistas
+    const excludedForRequest =
+      mode === "product"
+        ? allSeenIds
+        : [current!.id, ...colorSeenIds];
+
     try {
       const res = await fetch(`${AGENTS_URL}/swap`, {
         method: "POST",
@@ -156,7 +160,7 @@ function ProductCard({
         body: JSON.stringify({
           session_id: sessionId,
           category,
-          excluded_ids: excludedIds,
+          excluded_ids: excludedForRequest,
           budget_max: budget,
           merchant_slug: merchantSlug,
           swap_mode: mode,
@@ -164,13 +168,26 @@ function ProductCard({
         }),
       });
       const data = await res.json();
+
       if (data.product) {
         setCurrent(data.product);
-        setExcludedIds((prev) => [...prev, data.product.id]);
         onSwapped(category, data.product);
-        if (mode === "color") setNoMoreColors(false);
-      } else if (mode === "color") {
-        setNoMoreColors(true);
+
+        if (mode === "product") {
+          // Nuevo producto: agregar a vistos, resetear estado de color
+          setAllSeenIds((prev) => [...prev, data.product.id]);
+          setColorSeenIds([]);
+          setNoMoreColors(false);  // ← reset crítico
+          setNoMoreProducts(false);
+        } else {
+          // Nueva variante de color: trackear en ambas listas
+          setColorSeenIds((prev) => [...prev, data.product.id]);
+          setAllSeenIds((prev) => [...prev, data.product.id]);
+          setNoMoreColors(false);
+        }
+      } else {
+        if (mode === "color") setNoMoreColors(true);
+        if (mode === "product") setNoMoreProducts(true);
       }
     } finally {
       setSwapping(null);
@@ -218,20 +235,21 @@ function ProductCard({
           <div className="card-actions-row">
             <button
               onClick={() => handleSwap("product")}
-              disabled={swapping !== null}
+              disabled={swapping !== null || noMoreProducts}
               className="btn-secondary"
-              title="Ver otro producto"
+              title={noMoreProducts ? "No hay más productos disponibles" : "Ver otro producto"}
+              style={noMoreProducts ? { opacity: 0.4 } : {}}
             >
-              {swapping === "product" ? "..." : "↺ Otro"}
+              {swapping === "product" ? "..." : noMoreProducts ? "Sin más" : "↺ Otro"}
             </button>
             <button
               onClick={() => handleSwap("color")}
               disabled={swapping !== null || noMoreColors}
               className="btn-secondary"
-              title={noMoreColors ? "Sin más colores disponibles" : "Ver en otro color"}
+              title={noMoreColors ? "No hay más colores disponibles" : "Ver en otro color"}
               style={noMoreColors ? { opacity: 0.4 } : {}}
             >
-              {swapping === "color" ? "..." : noMoreColors ? "Sin más colores" : "◑ Color"}
+              {swapping === "color" ? "..." : noMoreColors ? "Sin colores" : "◑ Color"}
             </button>
           </div>
         </div>
