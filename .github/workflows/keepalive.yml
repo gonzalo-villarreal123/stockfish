@@ -1,0 +1,31 @@
+# Prevents Render free-tier cold starts by pinging /health every 14 minutes.
+# Render idles after ~15 min of inactivity; first request after idle takes 20-30s.
+#
+# Cost: ~zero (GitHub Actions free tier; the curl finishes in <5s each run).
+# Upgrade to Render Starter ($7/mo) instead if you need guaranteed warm starts
+# 24/7 or if Actions minutes become a concern on private repos.
+#
+# To disable: comment out the schedule trigger below.
+
+name: keepalive
+
+on:
+  schedule:
+    - cron: "*/14 * * * *"   # every 14 minutes — just under Render's 15-min idle threshold
+  workflow_dispatch:           # allow manual trigger for testing
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 45 \
+            https://stockfish-agents.onrender.com/health)
+          echo "HTTP $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "⚠ Health check returned $STATUS — service may be starting up or down"
+            exit 1
+          fi
+          echo "✓ Backend warm"

@@ -14,3 +14,12 @@ services:
         sync: false
       - key: SUPABASE_REST_URL
         value: https://malbjvnmqhdalttcvroi.supabase.co
+      # ── Tienda Nube OAuth (STO-14) ─────────────────────────
+      # Set these manually in the Render dashboard after creating the TN Partner app.
+      # Register redirect URI as: https://stockfish-agents.onrender.com/tn/callback
+      - key: TN_APP_ID
+        sync: false
+      - key: TN_CLIENT_SECRET
+        sync: false
+      - key: AGENTS_BASE_URL
+        value: https://stockfish-agents.onrender.com
