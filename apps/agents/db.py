@@ -111,6 +111,19 @@ async def create_session(session_data: dict) -> dict:
         return data[0] if data else {}
 
 
+async def upsert_session(session_data: dict) -> dict:
+    """Inserts or updates a design session (merge on id conflict)."""
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            rest("design_sessions"),
+            headers={**HEADERS, "Prefer": "resolution=merge-duplicates,return=representation"},
+            json=session_data,
+        )
+        r.raise_for_status()
+        data = r.json()
+        return data[0] if data else {}
+
+
 async def get_session(session_id: str) -> Optional[dict]:
     async with httpx.AsyncClient() as client:
         r = await client.get(

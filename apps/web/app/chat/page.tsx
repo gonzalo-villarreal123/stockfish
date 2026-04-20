@@ -540,9 +540,8 @@ function ShareComboButton({ shareToken }: { shareToken: string | null }) {
   const [copied, setCopied] = useState(false);
   if (!shareToken) return null;
 
-  const url = `${window.location.origin}/compartir/${shareToken}`;
-
   async function handleShare() {
+    const url = `${window.location.origin}/compartir/${shareToken}`;
     if (navigator.share) {
       try {
         await navigator.share({ title: "Mi idea de decoración — Stockfish", url });

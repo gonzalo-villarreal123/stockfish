@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict
 from dotenv import load_dotenv
 from graph import run_intake, run_combo_search, swap_product, generic_search_by_category, analyze_image
-from db import create_session, get_session, update_session, get_session_by_token, get_product_categories, get_merchant_by_slug
+from db import create_session, upsert_session, get_session, update_session, get_session_by_token, get_product_categories, get_merchant_by_slug
 from tn_router import router as tn_router
 from scraper import ALL_MERCHANTS
 
@@ -139,6 +139,7 @@ class ChatResponse(BaseModel):
     step: str          # "clarifying" | "interactive" | "error"
     status: str
     context: dict = {}
+    share_token: Optional[str] = None
 
 
 class SwapResponse(BaseModel):
@@ -344,6 +345,23 @@ async def clarify(body: ClarifyRequest):
         "combo": combo,
     }
 
+    # Persist combo to Supabase so it can be shared via share_token
+    share_token = None
+    try:
+        db_session = await upsert_session({
+            "id": body.session_id,
+            "status": "interactive",
+            "style_intent": {
+                "style_keywords": session.get("style_keywords", []),
+                "style_tags": session.get("style_tags", []),
+                "budget_total": budget,
+            },
+            "current_render": combo,
+        })
+        share_token = db_session.get("share_token")
+    except Exception as e:
+        print(f"[Clarify] No se pudo persistir sesión: {e}")
+
     reply = build_combo_reply(combo, session.get("style_tags", []))
     return ChatResponse(
         session_id=body.session_id,
@@ -355,7 +373,8 @@ async def clarify(body: ClarifyRequest):
             "style_keywords": session.get("style_keywords", []),
             "style_tags": session.get("style_tags", []),
             "budget_total": budget,
-        }
+        },
+        share_token=share_token,
     )
 
 
