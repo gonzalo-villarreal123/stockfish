@@ -133,7 +133,7 @@ function LanzamientoContent() {
 
         {/* Demo visual — ejemplo de prompts */}
         <section className="pb-20">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
               { label: "Living escandinavo", desc: "«Living nórdico, tonos beige y madera clara, depto de 50m²»" },
               { label: "Dormitorio minimalista", desc: "«Cuarto minimalista en blanco y negro, sin muchas cosas»" },
@@ -148,7 +148,7 @@ function LanzamientoContent() {
         </section>
 
         {/* Features */}
-        <section className="pb-24 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <section className="pb-24 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
           {FEATURES.map((f) => (
             <div key={f.title} className="flex flex-col gap-3">
               <span className="text-2xl text-white">{f.icon}</span>
@@ -163,7 +163,7 @@ function LanzamientoContent() {
           <h2 className="text-center text-2xl font-bold text-white mb-10">
             Lo que dicen los que ya lo usaron
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {SOCIAL_PROOF.map((t) => (
               <div key={t.name} className="p-6 rounded-2xl bg-[#141414] border border-gray-800 flex flex-col gap-4">
                 <p className="text-gray-300 text-sm leading-relaxed">"{t.quote}"</p>

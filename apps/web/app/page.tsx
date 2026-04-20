@@ -21,7 +21,7 @@ export default function Home() {
 
       {/* Hero */}
       <main className="max-w-5xl mx-auto px-6 py-24 flex flex-col items-center text-center">
-        <h1 className="text-5xl md:text-6xl font-extrabold text-white tracking-tight leading-tight mb-6">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-tight mb-6">
           Encontrá tu estilo.<br />
           <span className="text-gray-400">Sin usar filtros.</span>
         </h1>
@@ -37,7 +37,7 @@ export default function Home() {
         </div>
 
         {/* Ejemplos de Prompts */}
-        <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 text-left w-full">
+        <div className="mt-20 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 text-left w-full">
           <div className="p-6 rounded-2xl bg-[#141414] border border-gray-800 hover:border-gray-600 transition-colors">
             <p className="text-sm text-gray-500 mb-2">Búsqueda exacta</p>
             <p className="text-gray-300">"Busco un sillón nórdico de dos cuerpos, color gris oscuro, para un depto chico."</p>

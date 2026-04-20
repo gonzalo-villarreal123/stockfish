@@ -197,16 +197,20 @@ function ComboCard({
   category,
   item,
   cartIds,
+  wishlistIds,
   swapping,
   onSwap,
   onToggleCart,
+  onToggleWishlist,
 }: {
   category: string;
   item: ComboItem;
   cartIds: Set<string>;
+  wishlistIds: Set<string>;
   swapping: boolean;
   onSwap: (category: string) => void;
   onToggleCart: (product: Product) => void;
+  onToggleWishlist: (product: Product) => void;
 }) {
   const [imgError, setImgError] = useState(false);
   const label = CATEGORY_LABELS[category] || category;
@@ -226,6 +230,7 @@ function ComboCard({
   }
 
   const inCart = cartIds.has(product.id);
+  const inWishlist = wishlistIds.has(product.id);
 
   return (
     <div className="flex flex-col rounded-2xl bg-neutral-900 border border-neutral-800 overflow-hidden hover:border-neutral-700 hover:shadow-lg hover:shadow-black/40 transition-all">
@@ -274,7 +279,21 @@ function ComboCard({
             {swapping ? "..." : "Cambiar ↺"}
           </button>
           <button
+            onClick={() => onToggleWishlist(product)}
+            title={inWishlist ? "Quitar de guardados" : "Guardar"}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0 ${
+              inWishlist
+                ? "bg-red-500/20 border border-red-500/40 text-red-400"
+                : "border border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-white"
+            }`}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill={inWishlist ? "currentColor" : "none"}>
+              <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          <button
             onClick={() => onToggleCart(product)}
+            title={inCart ? "Quitar de selección" : "Agregar a selección"}
             className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0 ${
               inCart
                 ? "bg-white text-black"
@@ -365,15 +384,19 @@ function FeedbackPrompt({
 function ComboGrid({
   combo,
   cartIds,
+  wishlistIds,
   swappingCats,
   onSwap,
   onToggleCart,
+  onToggleWishlist,
 }: {
   combo: ComboData;
   cartIds: Set<string>;
+  wishlistIds: Set<string>;
   swappingCats: Set<string>;
   onSwap: (category: string) => void;
   onToggleCart: (product: Product) => void;
+  onToggleWishlist: (product: Product) => void;
 }) {
   const entries = Object.entries(combo).filter(([, item]) => !item.no_stock && item.best);
 
@@ -387,9 +410,11 @@ function ComboGrid({
           category={cat}
           item={item}
           cartIds={cartIds}
+          wishlistIds={wishlistIds}
           swapping={swappingCats.has(cat)}
           onSwap={onSwap}
           onToggleCart={onToggleCart}
+          onToggleWishlist={onToggleWishlist}
         />
       ))}
     </div>
@@ -456,6 +481,95 @@ function Cart({ items, onRemove }: { items: Product[]; onRemove: (id: string) =>
   );
 }
 
+// ── Wishlist ───────────────────────────────────────────────
+
+function Wishlist({ items, onRemove }: { items: Product[]; onRemove: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  if (items.length === 0) return null;
+
+  return (
+    <div className="fixed bottom-24 right-28 z-50">
+      {open && (
+        <div className="mb-2 w-72 bg-neutral-900 border border-neutral-700 rounded-2xl overflow-hidden shadow-2xl">
+          <div className="px-4 py-3 border-b border-neutral-800 flex items-center justify-between">
+            <span className="text-white text-sm font-semibold">Guardados</span>
+            <button onClick={() => setOpen(false)} className="text-neutral-500 hover:text-white">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
+          </div>
+          <div className="max-h-72 overflow-y-auto scrollbar-hide">
+            {items.map((p) => (
+              <div key={p.id} className="flex items-center gap-3 px-4 py-3 border-b border-neutral-800 last:border-0">
+                <img src={p.primary_image} alt={p.name} className="w-10 h-10 rounded-lg object-cover bg-neutral-800 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-white text-xs font-medium leading-snug line-clamp-1 hover:underline">{p.name}</a>
+                  <p className="text-neutral-400 text-xs mt-0.5">{formatPrice(p.price)}</p>
+                </div>
+                <button onClick={() => onRemove(p.id)} className="text-neutral-600 hover:text-neutral-400 flex-shrink-0">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="px-4 py-3">
+            <p className="text-neutral-400 text-xs">{items.length} {items.length === 1 ? "producto guardado" : "productos guardados"}</p>
+          </div>
+        </div>
+      )}
+      <button
+        onClick={() => setOpen(!open)}
+        className="ml-auto flex items-center gap-2 bg-neutral-900 border border-neutral-700 text-white text-sm font-semibold px-4 py-2.5 rounded-full shadow-lg hover:bg-neutral-800 transition-colors"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill={open ? "currentColor" : "none"} className="text-red-400">
+          <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        {items.length}
+      </button>
+    </div>
+  );
+}
+
+
+// ── Share Button ───────────────────────────────────────────
+
+function ShareComboButton({ shareToken }: { shareToken: string | null }) {
+  const [copied, setCopied] = useState(false);
+  if (!shareToken) return null;
+
+  const url = `${window.location.origin}/compartir/${shareToken}`;
+
+  async function handleShare() {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Mi idea de decoración — Stockfish", url });
+        return;
+      } catch {
+        // fallthrough to clipboard
+      }
+    }
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <button
+      onClick={handleShare}
+      className="ml-10 mt-3 flex items-center gap-2 text-xs text-neutral-400 border border-neutral-800 px-3 py-1.5 rounded-full hover:border-neutral-600 hover:text-white transition-colors"
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+        <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+      {copied ? "¡Link copiado!" : "Compartir esta idea"}
+    </button>
+  );
+}
+
+
 // ── Main ───────────────────────────────────────────────────
 
 export default function ChatPage() {
@@ -464,6 +578,8 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [cart, setCart] = useState<Product[]>([]);
+  const [wishlist, setWishlist] = useState<Product[]>([]);
+  const [shareToken, setShareToken] = useState<string | null>(null);
   const [swappingCats, setSwappingCats] = useState<Set<string>>(new Set());
   const [shownIds, setShownIds] = useState<Record<string, string[]>>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -486,6 +602,22 @@ export default function ChatPage() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const cartIds = new Set(cart.map((p) => p.id));
+  const wishlistIds = new Set(wishlist.map((p) => p.id));
+
+  // Load wishlist from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("stockfish_wishlist");
+      if (saved) setWishlist(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  // Persist wishlist to localStorage on change
+  useEffect(() => {
+    try {
+      localStorage.setItem("stockfish_wishlist", JSON.stringify(wishlist));
+    } catch {}
+  }, [wishlist]);
 
   // Track whether user is scrolled away from bottom
   const handleScroll = useCallback(() => {
@@ -618,6 +750,7 @@ export default function ChatPage() {
             ids[cat] = shown;
           }
           setShownIds(ids);
+          if (data.share_token) setShareToken(data.share_token);
           setMessages((prev) => [
             ...prev,
             { role: "assistant", text: data.reply, combo: newCombo },
@@ -750,7 +883,7 @@ export default function ChatPage() {
               <p className="text-neutral-400 text-sm mb-8 max-w-xs">
                 Contame qué estilo buscás y te armo un combo de productos reales de tiendas argentinas.
               </p>
-              <div className="grid grid-cols-2 gap-2 w-full max-w-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-sm">
                 {EXAMPLE_PROMPTS.map((prompt) => (
                   <button
                     key={prompt}
@@ -790,6 +923,7 @@ export default function ChatPage() {
                     <ComboGrid
                       combo={msg.combo}
                       cartIds={cartIds}
+                      wishlistIds={wishlistIds}
                       swappingCats={swappingCats}
                       onSwap={handleSwap}
                       onToggleCart={(p) =>
@@ -799,14 +933,26 @@ export default function ChatPage() {
                             : [...prev, p]
                         )
                       }
+                      onToggleWishlist={(p) =>
+                        setWishlist((prev) =>
+                          prev.find((x) => x.id === p.id)
+                            ? prev.filter((x) => x.id !== p.id)
+                            : [...prev, p]
+                        )
+                      }
                     />
-                    {i === messages.length - 1 && <ReferralShareCTA />}
+                    {i === messages.length - 1 && (
+                      <>
+                        <ShareComboButton shareToken={shareToken} />
+                        <ReferralShareCTA />
+                      </>
+                    )}
                   </>
                 )}
               </div>
             ) : (
               <div key={i} className="flex justify-end">
-                <div className="bg-neutral-800 text-white text-sm px-4 py-2.5 rounded-2xl rounded-tr-sm max-w-xs">
+                <div className="bg-neutral-800 text-white text-sm px-4 py-2.5 rounded-2xl rounded-tr-sm max-w-[85vw] sm:max-w-xs">
                   {msg.text}
                 </div>
               </div>
@@ -945,6 +1091,7 @@ export default function ChatPage() {
       </div>
 
       <Cart items={cart} onRemove={(id) => setCart((p) => p.filter((x) => x.id !== id))} />
+      <Wishlist items={wishlist} onRemove={(id) => setWishlist((p) => p.filter((x) => x.id !== id))} />
     </div>
   );
 }

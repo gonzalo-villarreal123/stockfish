@@ -38,7 +38,7 @@ export default function VenderPage() {
         </a>
 
         {/* Propuesta de Valor */}
-        <div className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-8 text-left w-full">
+        <div className="mt-24 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 text-left w-full">
           <div className="p-8 rounded-2xl bg-[#141414] border border-gray-800 hover:border-gray-700 transition-colors">
             <div className="w-10 h-10 bg-neutral-800 rounded-lg flex items-center justify-center mb-6">
               <span className="text-xl">🎯</span>
