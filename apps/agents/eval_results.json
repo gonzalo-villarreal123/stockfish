@@ -1,0 +1,1015 @@
+{
+  "run_at": "2026-04-20T11:06:27.196400",
+  "total_queries": 20,
+  "results": [
+    {
+      "id": "Q01",
+      "description": "Lámpara de pie minimalista",
+      "query": "lámpara de pie para living minimalista",
+      "categories_total": 1,
+      "categories_found": 1,
+      "coverage": 1.0,
+      "keyword_hit_rate": 1.0,
+      "avg_similarity": 0.7564,
+      "results_by_category": {
+        "lampara": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 2828,
+          "keyword_hit": true,
+          "matched_keywords": [
+            "velador"
+          ],
+          "top3": [
+            {
+              "name": "Velador Grimm Rosa Viejo",
+              "price": 99990.0,
+              "similarity": 0.759121089086408,
+              "merchant": "altorancho",
+              "category": "lampara"
+            },
+            {
+              "name": "Velador Grimm Amarillo",
+              "price": 99990.0,
+              "similarity": 0.756381957962285,
+              "merchant": "altorancho",
+              "category": "lampara"
+            },
+            {
+              "name": "Velador Grimm Azul Acero",
+              "price": 99990.0,
+              "similarity": 0.753573923877015,
+              "merchant": "altorancho",
+              "category": "lampara"
+            }
+          ],
+          "avg_similarity": 0.7564
+        }
+      }
+    },
+    {
+      "id": "Q02",
+      "description": "Velador nórdico para mesa de noche",
+      "query": "velador para mesa de noche estilo nórdico madera",
+      "categories_total": 1,
+      "categories_found": 1,
+      "coverage": 1.0,
+      "keyword_hit_rate": 1.0,
+      "avg_similarity": 0.7557,
+      "results_by_category": {
+        "lampara": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1495,
+          "keyword_hit": true,
+          "matched_keywords": [
+            "velador"
+          ],
+          "top3": [
+            {
+              "name": "Velador Grimm Verde (Nuevos Colores)",
+              "price": 81990.0,
+              "similarity": 0.758479609580065,
+              "merchant": "altorancho",
+              "category": "lampara"
+            },
+            {
+              "name": "Velador Grimm Blanco (Nuevos Colores)",
+              "price": 81990.0,
+              "similarity": 0.756936385814168,
+              "merchant": "altorancho",
+              "category": "lampara"
+            },
+            {
+              "name": "Velador Grimm Amarillo (Nuevos Colores)",
+              "price": 59990.0,
+              "similarity": 0.751539565576927,
+              "merchant": "altorancho",
+              "category": "lampara"
+            }
+          ],
+          "avg_similarity": 0.7557
+        }
+      }
+    },
+    {
+      "id": "Q03",
+      "description": "Lámpara colgante industrial",
+      "query": "lámpara colgante estilo industrial con metal y cable trenzado",
+      "categories_total": 1,
+      "categories_found": 1,
+      "coverage": 1.0,
+      "keyword_hit_rate": 0.0,
+      "avg_similarity": 0.7158,
+      "results_by_category": {
+        "lampara": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1484,
+          "keyword_hit": false,
+          "matched_keywords": [],
+          "top3": [
+            {
+              "name": "Velador Grimm Amarillo (Nuevos Colores)",
+              "price": 59990.0,
+              "similarity": 0.718704321423047,
+              "merchant": "altorancho",
+              "category": "lampara"
+            },
+            {
+              "name": "Velador Grimm Verde (Nuevos Colores)",
+              "price": 81990.0,
+              "similarity": 0.714655118307167,
+              "merchant": "altorancho",
+              "category": "lampara"
+            },
+            {
+              "name": "Velador Grimm Blanco (Nuevos Colores)",
+              "price": 81990.0,
+              "similarity": 0.714138405672408,
+              "merchant": "altorancho",
+              "category": "lampara"
+            }
+          ],
+          "avg_similarity": 0.7158
+        }
+      }
+    },
+    {
+      "id": "Q04",
+      "description": "Sillón tapizado boucle crema",
+      "query": "sillón tapizado en boucle color crema para living",
+      "categories_total": 1,
+      "categories_found": 1,
+      "coverage": 1.0,
+      "keyword_hit_rate": 1.0,
+      "avg_similarity": 0.6434,
+      "results_by_category": {
+        "mueble": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1587,
+          "keyword_hit": true,
+          "matched_keywords": [
+            "sillón"
+          ],
+          "top3": [
+            {
+              "name": "Sillón Doha Crudo",
+              "price": 239990.0,
+              "similarity": 0.648960295505472,
+              "merchant": "altorancho",
+              "category": "mueble"
+            },
+            {
+              "name": "Silla Adirondack Celeste",
+              "price": 379990.0,
+              "similarity": 0.642736298711746,
+              "merchant": "altorancho",
+              "category": "mueble"
+            },
+            {
+              "name": "Silla Adirondack Blanco Tiza",
+              "price": 379990.0,
+              "similarity": 0.638534150210978,
+              "merchant": "altorancho",
+              "category": "mueble"
+            }
+          ],
+          "avg_similarity": 0.6434
+        }
+      }
+    },
+    {
+      "id": "Q05",
+      "description": "Mesa ratona mármol y madera",
+      "query": "mesa ratona de mármol con patas de madera",
+      "categories_total": 1,
+      "categories_found": 1,
+      "coverage": 1.0,
+      "keyword_hit_rate": 1.0,
+      "avg_similarity": 0.7718,
+      "results_by_category": {
+        "mueble": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1424,
+          "keyword_hit": true,
+          "matched_keywords": [
+            "mesa",
+            "ratona"
+          ],
+          "top3": [
+            {
+              "name": "Mesa Ratona Simil Marmol",
+              "price": 173800.0,
+              "similarity": 0.78975909948349,
+              "merchant": "holyhaus",
+              "category": "mueble"
+            },
+            {
+              "name": "Mesa Ratona Tray Small Gris Hierro",
+              "price": 299990.0,
+              "similarity": 0.763402178084722,
+              "merchant": "altorancho",
+              "category": "mueble"
+            },
+            {
+              "name": "MESA RATONA NEST 2 SMALL WOOD BLANCO",
+              "price": 239990.0,
+              "similarity": 0.762110590934753,
+              "merchant": "altorancho",
+              "category": "mueble"
+            }
+          ],
+          "avg_similarity": 0.7718
+        }
+      }
+    },
+    {
+      "id": "Q06",
+      "description": "Escritorio para home office",
+      "query": "escritorio moderno blanco para home office",
+      "categories_total": 1,
+      "categories_found": 1,
+      "coverage": 1.0,
+      "keyword_hit_rate": 0.0,
+      "avg_similarity": 0.6646,
+      "results_by_category": {
+        "mueble": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1447,
+          "keyword_hit": false,
+          "matched_keywords": [],
+          "top3": [
+            {
+              "name": "Mesa Comedor Brooklyn Blanco 1 Mts",
+              "price": 899990.0,
+              "similarity": 0.66711699962616,
+              "merchant": "altorancho",
+              "category": "mueble"
+            },
+            {
+              "name": "Silla Lisboa Office Marron",
+              "price": 259990.0,
+              "similarity": 0.664101779460907,
+              "merchant": "altorancho",
+              "category": "mueble"
+            },
+            {
+              "name": "Silla Lisboa Office Negro",
+              "price": 259990.0,
+              "similarity": 0.662662982940674,
+              "merchant": "altorancho",
+              "category": "mueble"
+            }
+          ],
+          "avg_similarity": 0.6646
+        }
+      }
+    },
+    {
+      "id": "Q07",
+      "description": "Alfombra beige living amplio",
+      "query": "alfombra beige con textura para living amplio",
+      "categories_total": 1,
+      "categories_found": 1,
+      "coverage": 1.0,
+      "keyword_hit_rate": 0.0,
+      "avg_similarity": 0.7165,
+      "results_by_category": {
+        "textil": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1441,
+          "keyword_hit": false,
+          "matched_keywords": [],
+          "top3": [
+            {
+              "name": "Almohadon Vivo",
+              "price": 59900.0,
+              "similarity": 0.730369736309318,
+              "merchant": "solpalou",
+              "category": "textil"
+            },
+            {
+              "name": "Almohadon Surya",
+              "price": 70900.0,
+              "similarity": 0.710960388183594,
+              "merchant": "solpalou",
+              "category": "textil"
+            },
+            {
+              "name": "Almohadón Alfonsina 35x50 Cm",
+              "price": 23990.0,
+              "similarity": 0.708243250846863,
+              "merchant": "altorancho",
+              "category": "textil"
+            }
+          ],
+          "avg_similarity": 0.7165
+        }
+      }
+    },
+    {
+      "id": "Q08",
+      "description": "Almohadones lino tonos tierra",
+      "query": "almohadones de lino natural en tonos tierra",
+      "categories_total": 1,
+      "categories_found": 1,
+      "coverage": 1.0,
+      "keyword_hit_rate": 1.0,
+      "avg_similarity": 0.7103,
+      "results_by_category": {
+        "textil": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1139,
+          "keyword_hit": true,
+          "matched_keywords": [
+            "almohadón"
+          ],
+          "top3": [
+            {
+              "name": "Almohadón Velvet Stripes Negro y Blanco 45x45 Cm",
+              "price": 77000.0,
+              "similarity": 0.712371468544006,
+              "merchant": "altorancho",
+              "category": "textil"
+            },
+            {
+              "name": "Almohadón Velvet Stripes Negro y Blanco 35x50 Cm",
+              "price": 77000.0,
+              "similarity": 0.709462906058186,
+              "merchant": "altorancho",
+              "category": "textil"
+            },
+            {
+              "name": "Almohadón Aida 50x70 Cm",
+              "price": 34990.0,
+              "similarity": 0.709149956703186,
+              "merchant": "altorancho",
+              "category": "textil"
+            }
+          ],
+          "avg_similarity": 0.7103
+        }
+      }
+    },
+    {
+      "id": "Q09",
+      "description": "Terciopelo verde botella",
+      "query": "terciopelo verde botella para living opulento velvet",
+      "categories_total": 1,
+      "categories_found": 1,
+      "coverage": 1.0,
+      "keyword_hit_rate": 1.0,
+      "avg_similarity": 0.6773,
+      "results_by_category": {
+        "textil": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1523,
+          "keyword_hit": true,
+          "matched_keywords": [
+            "velvet"
+          ],
+          "top3": [
+            {
+              "name": "Almohadón Velvet Stripes Chocolate y Celeste 45x45 Cm",
+              "price": 77000.0,
+              "similarity": 0.685876667499562,
+              "merchant": "altorancho",
+              "category": "textil"
+            },
+            {
+              "name": "Almohadon Vivo",
+              "price": 59900.0,
+              "similarity": 0.673879643496289,
+              "merchant": "solpalou",
+              "category": "textil"
+            },
+            {
+              "name": "Almohadón Velvet Stripes Negro y Blanco 35x50 Cm",
+              "price": 77000.0,
+              "similarity": 0.672059595584888,
+              "merchant": "altorancho",
+              "category": "textil"
+            }
+          ],
+          "avg_similarity": 0.6773
+        }
+      }
+    },
+    {
+      "id": "Q10",
+      "description": "Cuadros abstractos tonos neutros",
+      "query": "cuadros abstractos en tonos neutros para living",
+      "categories_total": 1,
+      "categories_found": 1,
+      "coverage": 1.0,
+      "keyword_hit_rate": 1.0,
+      "avg_similarity": 0.6753,
+      "results_by_category": {
+        "cuadro": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1546,
+          "keyword_hit": true,
+          "matched_keywords": [
+            "cuadro"
+          ],
+          "top3": [
+            {
+              "name": "Cuadro Nero",
+              "price": 164900.0,
+              "similarity": 0.707039931206708,
+              "merchant": "solpalou",
+              "category": "cuadro"
+            },
+            {
+              "name": "Cuadro Flower",
+              "price": 108720.0,
+              "similarity": 0.662102223258814,
+              "merchant": "solpalou",
+              "category": "cuadro"
+            },
+            {
+              "name": "Cuadro Arquitectura #1",
+              "price": 159990.0,
+              "similarity": 0.656907280867859,
+              "merchant": "altorancho",
+              "category": "cuadro"
+            }
+          ],
+          "avg_similarity": 0.6753
+        }
+      }
+    },
+    {
+      "id": "Q11",
+      "description": "Láminas fotográficas blanco y negro",
+      "query": "láminas fotográficas en blanco y negro estilo minimalista",
+      "categories_total": 1,
+      "categories_found": 1,
+      "coverage": 1.0,
+      "keyword_hit_rate": 0.0,
+      "avg_similarity": 0.6717,
+      "results_by_category": {
+        "cuadro": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1572,
+          "keyword_hit": false,
+          "matched_keywords": [],
+          "top3": [
+            {
+              "name": "Cuadro Sombra 1",
+              "price": 265900.0,
+              "similarity": 0.686534902052132,
+              "merchant": "solpalou",
+              "category": "cuadro"
+            },
+            {
+              "name": "Cuadro Nero",
+              "price": 164900.0,
+              "similarity": 0.668011685252538,
+              "merchant": "solpalou",
+              "category": "cuadro"
+            },
+            {
+              "name": "Cuadro Fusion Beige 100x130 Cm",
+              "price": 1152000.0,
+              "similarity": 0.660622596740723,
+              "merchant": "altorancho",
+              "category": "cuadro"
+            }
+          ],
+          "avg_similarity": 0.6717
+        }
+      }
+    },
+    {
+      "id": "Q12",
+      "description": "Florero cerámica artesanal",
+      "query": "florero de cerámica artesanal en tonos tierra",
+      "categories_total": 1,
+      "categories_found": 1,
+      "coverage": 1.0,
+      "keyword_hit_rate": 1.0,
+      "avg_similarity": 0.7696,
+      "results_by_category": {
+        "florero": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1473,
+          "keyword_hit": true,
+          "matched_keywords": [
+            "jarrón",
+            "cerámica"
+          ],
+          "top3": [
+            {
+              "name": "Jarrón de Cerámica Orbe Negro",
+              "price": 91000.0,
+              "similarity": 0.785475207240869,
+              "merchant": "altorancho",
+              "category": "florero"
+            },
+            {
+              "name": "Jarron Kiral Large",
+              "price": 18990.0,
+              "similarity": 0.771413757120744,
+              "merchant": "altorancho",
+              "category": "florero"
+            },
+            {
+              "name": "Jarron Marea Amorfo",
+              "price": 129900.0,
+              "similarity": 0.751926049245708,
+              "merchant": "solpalou",
+              "category": "florero"
+            }
+          ],
+          "avg_similarity": 0.7696
+        }
+      }
+    },
+    {
+      "id": "Q13",
+      "description": "Florero vidrio transparente",
+      "query": "florero de vidrio transparente alto para flores",
+      "categories_total": 1,
+      "categories_found": 1,
+      "coverage": 1.0,
+      "keyword_hit_rate": 1.0,
+      "avg_similarity": 0.7742,
+      "results_by_category": {
+        "florero": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1205,
+          "keyword_hit": true,
+          "matched_keywords": [
+            "vidrio",
+            "jarrón"
+          ],
+          "top3": [
+            {
+              "name": "Jarrón de Vidrio Ivory",
+              "price": 90000.0,
+              "similarity": 0.783120487108289,
+              "merchant": "altorancho",
+              "category": "florero"
+            },
+            {
+              "name": "Jarrón de Vidrio Atlas Vison",
+              "price": 91000.0,
+              "similarity": 0.777643130877206,
+              "merchant": "altorancho",
+              "category": "florero"
+            },
+            {
+              "name": "Jarrón de Vidrio Lyric",
+              "price": 91000.0,
+              "similarity": 0.761759803400029,
+              "merchant": "altorancho",
+              "category": "florero"
+            }
+          ],
+          "avg_similarity": 0.7742
+        }
+      }
+    },
+    {
+      "id": "Q14",
+      "description": "Escultura forma de hongo",
+      "query": "escultura decorativa con forma de hongo para estante",
+      "categories_total": 1,
+      "categories_found": 1,
+      "coverage": 1.0,
+      "keyword_hit_rate": 0.0,
+      "avg_similarity": 0.5698,
+      "results_by_category": {
+        "escultura": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1466,
+          "keyword_hit": false,
+          "matched_keywords": [],
+          "top3": [
+            {
+              "name": "Florero Halo Globo",
+              "price": 87900.0,
+              "similarity": 0.6194087266922,
+              "merchant": "solpalou",
+              "category": "escultura"
+            },
+            {
+              "name": "Set Cubiertos Roots",
+              "price": 158990.0,
+              "similarity": 0.572303789028639,
+              "merchant": "altorancho",
+              "category": "escultura"
+            },
+            {
+              "name": "Set Cubiertos Lumine",
+              "price": 63000.0,
+              "similarity": 0.517766118049622,
+              "merchant": "altorancho",
+              "category": "escultura"
+            }
+          ],
+          "avg_similarity": 0.5698
+        }
+      }
+    },
+    {
+      "id": "Q15",
+      "description": "Figura decorativa abstracta resina",
+      "query": "figura decorativa abstracta minimalista de resina",
+      "categories_total": 1,
+      "categories_found": 1,
+      "coverage": 1.0,
+      "keyword_hit_rate": 0.0,
+      "avg_similarity": 0.5888,
+      "results_by_category": {
+        "escultura": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1340,
+          "keyword_hit": false,
+          "matched_keywords": [],
+          "top3": [
+            {
+              "name": "Set Cubiertos Roots",
+              "price": 158990.0,
+              "similarity": 0.595685177655683,
+              "merchant": "altorancho",
+              "category": "escultura"
+            },
+            {
+              "name": "VESTIDO PRIM",
+              "price": 20000.0,
+              "similarity": 0.591635918118711,
+              "merchant": "nordika",
+              "category": "escultura"
+            },
+            {
+              "name": "CHALECO ETSY",
+              "price": 15000.0,
+              "similarity": 0.579078658654451,
+              "merchant": "nordika",
+              "category": "escultura"
+            }
+          ],
+          "avg_similarity": 0.5888
+        }
+      }
+    },
+    {
+      "id": "Q16",
+      "description": "Espejo redondo marco madera",
+      "query": "espejo redondo grande con marco de madera natural",
+      "categories_total": 1,
+      "categories_found": 1,
+      "coverage": 1.0,
+      "keyword_hit_rate": 0.0,
+      "avg_similarity": 0.6852,
+      "results_by_category": {
+        "espejo": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1907,
+          "keyword_hit": false,
+          "matched_keywords": [],
+          "top3": [
+            {
+              "name": "Mesa Ratona Nest Big 1 Negro",
+              "price": 99990.0,
+              "similarity": 0.696829935813843,
+              "merchant": "altorancho",
+              "category": "espejo"
+            },
+            {
+              "name": "Mesa Ratona Nest Big 1 Dorado",
+              "price": 99990.0,
+              "similarity": 0.687972486019135,
+              "merchant": "altorancho",
+              "category": "espejo"
+            },
+            {
+              "name": "Espejo Aure",
+              "price": 69990.0,
+              "similarity": 0.670932292938232,
+              "merchant": "altorancho",
+              "category": "espejo"
+            }
+          ],
+          "avg_similarity": 0.6852
+        }
+      }
+    },
+    {
+      "id": "Q17",
+      "description": "Espejo arco cuerpo entero bohemio",
+      "query": "espejo arco de cuerpo entero estilo bohemio",
+      "categories_total": 1,
+      "categories_found": 1,
+      "coverage": 1.0,
+      "keyword_hit_rate": 1.0,
+      "avg_similarity": 0.6366,
+      "results_by_category": {
+        "espejo": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1271,
+          "keyword_hit": true,
+          "matched_keywords": [
+            "espejo"
+          ],
+          "top3": [
+            {
+              "name": "Espejo Aure",
+              "price": 69990.0,
+              "similarity": 0.649338325897556,
+              "merchant": "altorancho",
+              "category": "espejo"
+            },
+            {
+              "name": "Mesa Ratona Nest Big 1 Negro",
+              "price": 99990.0,
+              "similarity": 0.634277682474923,
+              "merchant": "altorancho",
+              "category": "espejo"
+            },
+            {
+              "name": "Espejo Bemus",
+              "price": 19990.0,
+              "similarity": 0.626078825411834,
+              "merchant": "altorancho",
+              "category": "espejo"
+            }
+          ],
+          "avg_similarity": 0.6366
+        }
+      }
+    },
+    {
+      "id": "Q18",
+      "description": "Living nórdico completo",
+      "query": "decoración nórdica escandinava tonos beige madera y textiles suaves",
+      "categories_total": 3,
+      "categories_found": 3,
+      "coverage": 1.0,
+      "keyword_hit_rate": 0.0,
+      "avg_similarity": 0.6354,
+      "results_by_category": {
+        "mueble": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1368,
+          "keyword_hit": false,
+          "matched_keywords": [],
+          "top3": [
+            {
+              "name": "MESA RATONA NEST 2 SMALL WOOD BLANCO",
+              "price": 239990.0,
+              "similarity": 0.628512225835788,
+              "merchant": "altorancho",
+              "category": "mueble"
+            },
+            {
+              "name": "Mesa Ratona Bord Med Gris",
+              "price": 169990.0,
+              "similarity": 0.616294980049138,
+              "merchant": "altorancho",
+              "category": "mueble"
+            },
+            {
+              "name": "Mesa Ratona Bord Med Negro",
+              "price": 169990.0,
+              "similarity": 0.611599326133732,
+              "merchant": "altorancho",
+              "category": "mueble"
+            }
+          ],
+          "avg_similarity": 0.6188
+        },
+        "textil": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1339,
+          "keyword_hit": false,
+          "matched_keywords": [],
+          "top3": [
+            {
+              "name": "Almohadon Vivo",
+              "price": 59900.0,
+              "similarity": 0.623863275992581,
+              "merchant": "solpalou",
+              "category": "textil"
+            },
+            {
+              "name": "Alfombra de Yute Nordic 200x300 Cm",
+              "price": 499990.0,
+              "similarity": 0.619905755531102,
+              "merchant": "altorancho",
+              "category": "textil"
+            },
+            {
+              "name": "Almohadón Velvet Stripes Negro y Blanco 45x45 Cm",
+              "price": 77000.0,
+              "similarity": 0.612871550746469,
+              "merchant": "altorancho",
+              "category": "textil"
+            }
+          ],
+          "avg_similarity": 0.6189
+        },
+        "lampara": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1284,
+          "keyword_hit": false,
+          "matched_keywords": [],
+          "top3": [
+            {
+              "name": "Velador Grimm Verde (Nuevos Colores)",
+              "price": 81990.0,
+              "similarity": 0.674417018890381,
+              "merchant": "altorancho",
+              "category": "lampara"
+            },
+            {
+              "name": "Velador Grimm Blanco (Nuevos Colores)",
+              "price": 81990.0,
+              "similarity": 0.66998702287674,
+              "merchant": "altorancho",
+              "category": "lampara"
+            },
+            {
+              "name": "Velador Grimm Rosa (Nuevos Colores)",
+              "price": 81990.0,
+              "similarity": 0.660880168623915,
+              "merchant": "altorancho",
+              "category": "lampara"
+            }
+          ],
+          "avg_similarity": 0.6684
+        }
+      }
+    },
+    {
+      "id": "Q19",
+      "description": "Estilo industrial metal y madera",
+      "query": "decoración industrial con metal negro y madera oscura",
+      "categories_total": 2,
+      "categories_found": 2,
+      "coverage": 1.0,
+      "keyword_hit_rate": 0.5,
+      "avg_similarity": 0.7197,
+      "results_by_category": {
+        "lampara": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 2325,
+          "keyword_hit": false,
+          "matched_keywords": [],
+          "top3": [
+            {
+              "name": "Velador Grimm Blanco (Nuevos Colores)",
+              "price": 81990.0,
+              "similarity": 0.743569612503052,
+              "merchant": "altorancho",
+              "category": "lampara"
+            },
+            {
+              "name": "Velador Grimm Amarillo (Nuevos Colores)",
+              "price": 59990.0,
+              "similarity": 0.739965043662937,
+              "merchant": "altorancho",
+              "category": "lampara"
+            },
+            {
+              "name": "Velador Grimm Rosa (Nuevos Colores)",
+              "price": 81990.0,
+              "similarity": 0.738420204018344,
+              "merchant": "altorancho",
+              "category": "lampara"
+            }
+          ],
+          "avg_similarity": 0.7407
+        },
+        "mueble": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1426,
+          "keyword_hit": true,
+          "matched_keywords": [
+            "negro"
+          ],
+          "top3": [
+            {
+              "name": "Sillón Doha Negro",
+              "price": 299990.0,
+              "similarity": 0.708534738675803,
+              "merchant": "altorancho",
+              "category": "mueble"
+            },
+            {
+              "name": "Mesa Ratona Bord Med Negro",
+              "price": 169990.0,
+              "similarity": 0.695662975311284,
+              "merchant": "altorancho",
+              "category": "mueble"
+            },
+            {
+              "name": "Silla Lisboa Office Negro",
+              "price": 259990.0,
+              "similarity": 0.691590565944281,
+              "merchant": "altorancho",
+              "category": "mueble"
+            }
+          ],
+          "avg_similarity": 0.6986
+        }
+      }
+    },
+    {
+      "id": "Q20",
+      "description": "Departamento pequeño contemporáneo",
+      "query": "decoración para departamento pequeño estilo contemporáneo funcional",
+      "categories_total": 2,
+      "categories_found": 2,
+      "coverage": 1.0,
+      "keyword_hit_rate": 0.0,
+      "avg_similarity": 0.6547,
+      "results_by_category": {
+        "mueble": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1443,
+          "keyword_hit": false,
+          "matched_keywords": [],
+          "top3": [
+            {
+              "name": "Mesa Comedor Urban Cuadrada Gris",
+              "price": 499990.0,
+              "similarity": 0.639533286178122,
+              "merchant": "altorancho",
+              "category": "mueble"
+            },
+            {
+              "name": "Mesa Comedor Urban Rectangular Gris",
+              "price": 679990.0,
+              "similarity": 0.628557327816732,
+              "merchant": "altorancho",
+              "category": "mueble"
+            },
+            {
+              "name": "Mesa Comedor Urban Cuadrada Verde Seco",
+              "price": 499990.0,
+              "similarity": 0.624979779126675,
+              "merchant": "altorancho",
+              "category": "mueble"
+            }
+          ],
+          "avg_similarity": 0.631
+        },
+        "textil": {
+          "found": true,
+          "count": 3,
+          "latency_ms": 1350,
+          "keyword_hit": false,
+          "matched_keywords": [],
+          "top3": [
+            {
+              "name": "Almohadon Vivo",
+              "price": 59900.0,
+              "similarity": 0.683829070672027,
+              "merchant": "solpalou",
+              "category": "textil"
+            },
+            {
+              "name": "Almohadón Velvet Stripes Chocolate y Celeste 45x45 Cm",
+              "price": 77000.0,
+              "similarity": 0.682081501607995,
+              "merchant": "altorancho",
+              "category": "textil"
+            },
+            {
+              "name": "Almohadon Surya",
+              "price": 70900.0,
+              "similarity": 0.669481952817325,
+              "merchant": "solpalou",
+              "category": "textil"
+            }
+          ],
+          "avg_similarity": 0.6785
+        }
+      }
+    }
+  ]
+}
