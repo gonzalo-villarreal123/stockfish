@@ -205,12 +205,13 @@ def normalize_product(raw: dict, merchant_id: str, store_base_url: str) -> Optio
     # External ID
     external_id = str(raw.get("id", ""))
 
-    # Canonical URL — TN gives handle per language
-    handle = _es(raw.get("handle", ""))
-    url = f"{store_base_url.rstrip('/')}/productos/{handle}" if handle else ""
+    # Product URL — prefer canonical_url (TN's authoritative source, handles
+    # /productos vs /tienda path variation); fall back to constructing from handle.
+    url = raw.get("canonical_url", "").strip()
     if not url:
-        # fallback: use canonical_url if present
-        url = raw.get("canonical_url", "")
+        handle = _es(raw.get("handle", ""))
+        if handle:
+            url = f"{store_base_url.rstrip('/')}/productos/{handle}"
 
     # Category + dimensions
     full_text = f"{name} {description}"
