@@ -27,22 +27,45 @@ ALL_MERCHANTS = [
 
 
 # ── Categorías de arte & decoración ───────────────────────
+# NOTE: order matters — first match wins. Broader/structural categories (mueble)
+# must come before narrower attribute-level ones (espejo) to avoid e.g. a
+# "cómoda con espejo" landing in espejo instead of mueble.
 CATEGORY_KEYWORDS = {
-    "cuadro":    ["cuadro", "print", "poster", "lámina", "litografía", "fotografía", "arte"],
-    "escultura": ["escultura", "figura", "estatua", "objeto decorativo", "pieza"],
-    "lampara":   ["lámpara", "luz", "iluminación", "velador", "aplique"],
+    # lampara before mueble: "lámpara de mesa" must match lampara, not mueble's "mesa"
+    "lampara":   ["lámpara", "lampara", "velador", "aplique", "iluminación", "iluminacion"],
+    "mueble":    [
+        "mesa", "silla", "sillón", "sillon", "sofá", "sofa", "estante", "repisa",
+        "cómoda", "comoda", "biblioteca", "rack", "camastro", "puff", "puf",
+        "recibidor", "respaldo", "cama", "ropero", "placard", "escritorio", "perchero",
+    ],
     "espejo":    ["espejo", "mirror"],
-    "florero":   ["florero", "jarrón", "vaso decorativo"],
-    "textil":    ["almohadón", "cojín", "manta", "tapiz", "alfombra"],
+    "florero":   [
+        "florero", "jarrón", "jarron", "vaso decorativo",
+        "vela", "velita", "candelabro", "portavela", "portaretrato", "marco",
+        "bandeja", "cesto", "canasto", "cesta", "aromatizador", "difusor",
+        "matera", "frasco",
+    ],
+    "textil":    ["almohadón", "almohadon", "cojín", "cojin", "manta", "tapiz", "alfombra"],
     "planta":    ["planta", "maceta", "suculenta"],
-    "mueble":    ["mesa", "silla", "sillón", "sofá", "estante", "repisa", "cómoda"],
+    "cuadro":    ["cuadro", "print", "poster", "lámina", "lamina", "litografía", "fotografia", "fotografía", "arte"],
+    # "pieza" removed — far too generic (appears in "pieza única", "esta pieza es...", etc.)
+    # "figura" narrowed to "figura decorativa" to avoid false positives
+    "escultura": ["escultura", "figura decorativa", "estatua", "objeto decorativo"],
 }
 
 
 def detect_category(name: str, description: str = "") -> str:
-    text = f"{name} {description}".lower()
+    # Name-first pass: a match in the product name is definitive.
+    # This prevents description phrases like "ideal para tu mesa de living"
+    # from miscategorising a lamp as mueble.
+    name_lower = name.lower()
     for category, keywords in CATEGORY_KEYWORDS.items():
-        if any(kw in text for kw in keywords):
+        if any(kw in name_lower for kw in keywords):
+            return category
+    # Fallback: search full text (name + description).
+    full = f"{name} {description}".lower()
+    for category, keywords in CATEGORY_KEYWORDS.items():
+        if any(kw in full for kw in keywords):
             return category
     return "otro"
 
