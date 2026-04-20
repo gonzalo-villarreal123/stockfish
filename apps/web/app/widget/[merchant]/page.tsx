@@ -94,10 +94,11 @@ function ProductCard({
   onSwapped: (category: string, product: Product) => void;
 }) {
   const [current, setCurrent] = useState<Product | null>(item.best);
-  const [swapping, setSwapping] = useState(false);
+  const [swapping, setSwapping] = useState<"product" | "color" | null>(null);
   const [excludedIds, setExcludedIds] = useState<string[]>(
     item.best ? [item.best.id] : []
   );
+  const [noMoreColors, setNoMoreColors] = useState(false);
 
   const [addedToCart, setAddedToCart] = useState(false);
 
@@ -139,14 +140,15 @@ function ProductCard({
     setTimeout(() => setAddedToCart(false), 2000);
   }
 
-  async function handleSwap() {
+  async function handleSwap(mode: "product" | "color") {
     capture("widget_product_swapped", {
       session_id: sessionId,
       category,
       merchant_slug: merchantSlug,
       previous_product_id: current!.id,
+      swap_mode: mode,
     });
-    setSwapping(true);
+    setSwapping(mode);
     try {
       const res = await fetch(`${AGENTS_URL}/swap`, {
         method: "POST",
@@ -157,6 +159,8 @@ function ProductCard({
           excluded_ids: excludedIds,
           budget_max: budget,
           merchant_slug: merchantSlug,
+          swap_mode: mode,
+          current_product_name: current!.name,
         }),
       });
       const data = await res.json();
@@ -164,9 +168,12 @@ function ProductCard({
         setCurrent(data.product);
         setExcludedIds((prev) => [...prev, data.product.id]);
         onSwapped(category, data.product);
+        if (mode === "color") setNoMoreColors(false);
+      } else if (mode === "color") {
+        setNoMoreColors(true);
       }
     } finally {
-      setSwapping(false);
+      setSwapping(null);
     }
   }
 
@@ -185,37 +192,48 @@ function ProductCard({
         <p className="card-name">{current.name}</p>
         <p className="card-price">{formatPrice(current.price)}</p>
         <div className="card-actions">
-          <button
-            onClick={handleAddToCart}
-            className="btn-primary"
-          >
-            {addedToCart ? "✓ Agregado" : "🛒 Agregar"}
-          </button>
-          <a
-            href={current.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-secondary"
-            onClick={() =>
-              capture("widget_product_viewed", {
-                session_id: sessionId,
-                product_id: current.id,
-                product_name: current.name,
-                price: current.price,
-                category,
-                merchant_slug: merchantSlug,
-              })
-            }
-          >
-            Ver
-          </a>
-          <button
-            onClick={handleSwap}
-            disabled={swapping}
-            className="btn-secondary"
-          >
-            {swapping ? "..." : "↺"}
-          </button>
+          <div className="card-actions-row">
+            <button onClick={handleAddToCart} className="btn-primary">
+              {addedToCart ? "✓ Agregado" : "🛒 Agregar"}
+            </button>
+            <a
+              href={current.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary"
+              onClick={() =>
+                capture("widget_product_viewed", {
+                  session_id: sessionId,
+                  product_id: current.id,
+                  product_name: current.name,
+                  price: current.price,
+                  category,
+                  merchant_slug: merchantSlug,
+                })
+              }
+            >
+              Ver →
+            </a>
+          </div>
+          <div className="card-actions-row">
+            <button
+              onClick={() => handleSwap("product")}
+              disabled={swapping !== null}
+              className="btn-secondary"
+              title="Ver otro producto"
+            >
+              {swapping === "product" ? "..." : "↺ Otro"}
+            </button>
+            <button
+              onClick={() => handleSwap("color")}
+              disabled={swapping !== null || noMoreColors}
+              className="btn-secondary"
+              title={noMoreColors ? "Sin más colores disponibles" : "Ver en otro color"}
+              style={noMoreColors ? { opacity: 0.4 } : {}}
+            >
+              {swapping === "color" ? "..." : noMoreColors ? "Sin más colores" : "◑ Color"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -603,8 +621,13 @@ export default function WidgetPage() {
         }
         .card-actions {
           display: flex;
+          flex-direction: column;
           gap: 6px;
           margin-top: 8px;
+        }
+        .card-actions-row {
+          display: flex;
+          gap: 6px;
         }
         .btn-primary {
           flex: 1;

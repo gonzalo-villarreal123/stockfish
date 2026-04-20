@@ -124,6 +124,8 @@ class SwapRequest(BaseModel):
     excluded_ids: List[str]
     budget_max: Optional[float] = None
     merchant_slug: Optional[str] = None
+    swap_mode: Optional[str] = "product"
+    current_product_name: Optional[str] = None
 
 
 class FeedbackRequest(BaseModel):
@@ -414,6 +416,8 @@ async def swap(body: SwapRequest):
         excluded_ids=body.excluded_ids,
         budget_max=body.budget_max,
         merchant_id=merchant_id,
+        swap_mode=body.swap_mode or "product",
+        current_product_name=body.current_product_name,
     )
 
     # Fallback genérico si no hay resultado con el estilo

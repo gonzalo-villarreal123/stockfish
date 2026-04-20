@@ -97,6 +97,35 @@ QUERY_SYNONYMS = {
     "macramé":    "macrame",
 }
 
+COLOR_MATERIAL_WORDS = {
+    "blanco", "negro", "natural", "beige", "gris", "arena", "crema",
+    "verde", "azul", "rojo", "amarillo", "naranja", "rosa", "lila", "violeta",
+    "madera", "miel", "nogal", "roble", "pino", "bambú", "bambu", "teca",
+    "dorado", "plateado", "cobre", "bronce", "cromado", "claro", "oscuro",
+    "white", "black", "grey", "gray", "gold", "silver", "copper", "nude",
+    "pequeño", "chico", "mediano", "grande", "xl", "xs",
+}
+
+def is_variant(name1: str, name2: str) -> bool:
+    """True si dos productos son variantes (mismo modelo, distinto color/material/tamaño)."""
+    def normalize(name: str) -> str:
+        name = name.lower().strip()
+        tokens = re.split(r"[\s\-_/|,\.]+", name)
+        tokens = [t for t in tokens if t and t not in COLOR_MATERIAL_WORDS and not t.isdigit()]
+        return " ".join(tokens)
+
+    n1, n2 = normalize(name1), normalize(name2)
+    if not n1 or not n2:
+        return False
+    if n1 == n2 or n1 in n2 or n2 in n1:
+        return True
+    w1, w2 = set(n1.split()), set(n2.split())
+    if not w1 or not w2:
+        return False
+    jaccard = len(w1 & w2) / len(w1 | w2)
+    return jaccard >= 0.65
+
+
 def enrich_query(text: str) -> str:
     """Agrega sinónimos en inglés para términos en español que suelen aparecer
     en nombres de productos importados, mejorando el match semántico."""
@@ -430,27 +459,64 @@ async def generic_search_by_category(category: str, excluded_ids: List[str] = No
 async def swap_product(style_keywords: List[str], style_tags: List[str],
                         category: str, excluded_ids: List[str],
                         budget_max: Optional[float] = None,
-                        merchant_id: Optional[str] = None) -> Optional[dict]:
-    """Busca la siguiente mejor opción para una categoría, excluyendo productos ya mostrados."""
-    query_text = " ".join(style_keywords)
-    if style_tags:
-        query_text += " " + " ".join(style_tags)
+                        merchant_id: Optional[str] = None,
+                        swap_mode: str = "product",
+                        current_product_name: Optional[str] = None) -> Optional[dict]:
+    """Busca la siguiente opción para una categoría.
 
-    print(f"[Swap] Buscando alternativa para '{category}' excluyendo {excluded_ids}")
+    swap_mode="product": busca un producto genuinamente diferente (filtra variantes).
+    swap_mode="color":   busca una variante del producto actual (diferente color/material).
+    """
+    print(f"[Swap] mode={swap_mode} | category={category} | current='{current_product_name}'")
 
     try:
+        if swap_mode == "color" and current_product_name:
+            # Buscar variantes: usar el nombre del producto actual como query
+            embedding = get_embedding(current_product_name)
+            embedding_str = embedding_to_str(embedding)
+            candidates = search_by_category(
+                embedding_str, category,
+                max_price=budget_max,
+                limit=10,
+                exclude_ids=excluded_ids,
+                merchant_id=merchant_id,
+            )
+            # Devolver el primer candidato que sea variante del actual
+            for candidate in candidates:
+                if is_variant(current_product_name, candidate["name"]):
+                    print(f"[SwapColor] Variante encontrada: '{candidate['name']}'")
+                    return candidate
+            print(f"[SwapColor] Sin variantes disponibles para '{current_product_name}'")
+            return None
+
+        # swap_mode == "product": buscar producto diferente, salteando variantes
+        query_text = " ".join(style_keywords)
+        if style_tags:
+            query_text += " " + " ".join(style_tags)
+
         category_ctx = CATEGORY_CONTEXT.get(category, "")
         full_query = f"{query_text} {category_ctx}".strip() if category_ctx else query_text
         embedding = get_embedding(full_query)
         embedding_str = embedding_to_str(embedding)
-        products = search_by_category(
+        candidates = search_by_category(
             embedding_str, category,
             max_price=budget_max,
-            limit=1,
+            limit=8,
             exclude_ids=excluded_ids,
             merchant_id=merchant_id,
         )
-        return products[0] if products else None
+
+        if current_product_name:
+            # Priorizar productos que NO sean variantes del actual
+            non_variants = [p for p in candidates if not is_variant(current_product_name, p["name"])]
+            if non_variants:
+                print(f"[Swap] Producto diferente: '{non_variants[0]['name']}'")
+                return non_variants[0]
+            # Si todos son variantes, devolver el primero igual (mejor que nada)
+            print(f"[Swap] Solo variantes disponibles, devolviendo la primera")
+
+        return candidates[0] if candidates else None
+
     except Exception as e:
         print(f"[Swap] Error: {e}")
         return None
