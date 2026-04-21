@@ -234,6 +234,14 @@ async def save_tn_credentials(merchant_id: str, store_id: str, access_token: str
         r.raise_for_status()
 
 
+async def save_feedback(feedback: dict):
+    """Persiste feedback del usuario cuando no encuentra lo que busca."""
+    async with httpx.AsyncClient() as client:
+        r = await client.post(rest("search_feedback"), headers=HEADERS, json=feedback)
+        if r.status_code not in (200, 201):
+            print(f"[save_feedback] Error: {r.status_code} {r.text[:200]}")
+
+
 async def save_search_event(event: dict):
     """Persiste una búsqueda procesada para el dashboard de insights."""
     async with httpx.AsyncClient() as client:

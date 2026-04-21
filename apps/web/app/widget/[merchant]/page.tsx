@@ -76,6 +76,172 @@ function renderText(text: string) {
   });
 }
 
+// ── FeedbackInline ─────────────────────────────────────────
+
+function FeedbackInline({
+  category,
+  sessionId,
+  merchantSlug,
+  prompt,
+}: {
+  category: string;
+  sessionId: string;
+  merchantSlug: string;
+  prompt: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  async function handleSubmit() {
+    if (!text.trim()) return;
+    setSending(true);
+    try {
+      await fetch(`${AGENTS_URL}/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          merchant_slug: merchantSlug,
+          category,
+          text: text.trim(),
+        }),
+      });
+      setSent(true);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (sent) {
+    return (
+      <div style={{ fontSize: 12, color: "#555", marginTop: 8, textAlign: "center" }}>
+        ¡Gracias! Lo tenemos en cuenta.
+      </div>
+    );
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        style={{
+          background: "none",
+          border: "none",
+          color: "#444",
+          fontSize: 11,
+          cursor: "pointer",
+          marginTop: 8,
+          padding: "2px 0",
+          textDecoration: "underline",
+          textDecorationColor: "#333",
+          display: "block",
+          width: "100%",
+          textAlign: "center",
+        }}
+      >
+        {prompt}
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+      <textarea
+        autoFocus
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Ej: buscaba una lámpara de techo estilo rústico..."
+        rows={2}
+        style={{
+          background: "#1a1a1a",
+          border: "1px solid #333",
+          borderRadius: 8,
+          padding: "7px 10px",
+          color: "#ccc",
+          fontSize: 12,
+          resize: "none",
+          outline: "none",
+          fontFamily: "inherit",
+          lineHeight: 1.4,
+        }}
+      />
+      <div style={{ display: "flex", gap: 6 }}>
+        <button
+          onClick={() => setOpen(false)}
+          style={{
+            flex: 1,
+            background: "none",
+            border: "1px solid #2a2a2a",
+            color: "#555",
+            fontSize: 11,
+            borderRadius: 7,
+            padding: "5px 0",
+            cursor: "pointer",
+          }}
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={handleSubmit}
+          disabled={!text.trim() || sending}
+          style={{
+            flex: 2,
+            background: "#222",
+            border: "1px solid #333",
+            color: text.trim() ? "#fff" : "#555",
+            fontSize: 11,
+            borderRadius: 7,
+            padding: "5px 0",
+            cursor: text.trim() ? "pointer" : "default",
+          }}
+        >
+          {sending ? "Enviando..." : "Enviar"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── NoStockCard ────────────────────────────────────────────
+
+function NoStockCard({
+  category,
+  sessionId,
+  merchantSlug,
+}: {
+  category: string;
+  sessionId: string;
+  merchantSlug: string;
+}) {
+  return (
+    <div className="product-card" style={{ opacity: 0.7 }}>
+      <div className="card-image-wrap" style={{
+        background: "#1a1a1a",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 8,
+      }}>
+        <span style={{ fontSize: 22 }}>📦</span>
+        <span className="card-category-badge">
+          {CATEGORY_LABELS[category] || category}
+        </span>
+      </div>
+      <div className="card-body">
+        <p className="card-name" style={{ color: "#555" }}>Sin stock en esta categoría</p>
+        <FeedbackInline
+          category={category}
+          sessionId={sessionId}
+          merchantSlug={merchantSlug}
+          prompt="¿Qué buscabas? Contanos →"
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── ProductCard ────────────────────────────────────────────
 
 function ProductCard({
@@ -106,6 +272,7 @@ function ProductCard({
   const [colorSeenIds, setColorSeenIds] = useState<string[]>([]);
   const [noMoreColors, setNoMoreColors] = useState(false);
   const [noMoreProducts, setNoMoreProducts] = useState(false);
+  const [swapCount, setSwapCount] = useState(0);
 
   if (!current || item.no_stock) return null;
 
@@ -172,6 +339,7 @@ function ProductCard({
       if (data.product) {
         setCurrent(data.product);
         onSwapped(category, data.product);
+        setSwapCount((n) => n + 1);
 
         if (mode === "product") {
           // Nuevo producto: agregar a vistos, resetear estado de color
@@ -209,6 +377,7 @@ function ProductCard({
         <p className="card-name">{current.name}</p>
         <p className="card-price">{formatPrice(current.price)}</p>
         <div className="card-actions">
+
           <div className="card-actions-row">
             <button onClick={handleAddToCart} className="btn-primary">
               {addedToCart ? "✓ Agregado" : "🛒 Agregar"}
@@ -253,6 +422,14 @@ function ProductCard({
             </button>
           </div>
         </div>
+        {swapCount >= 2 && (
+          <FeedbackInline
+            category={category}
+            sessionId={sessionId}
+            merchantSlug={merchantSlug}
+            prompt="¿No encontrás lo que buscás?"
+          />
+        )}
       </div>
     </div>
   );
@@ -951,7 +1128,15 @@ export default function WidgetPage() {
                 </div>
                 {msg.combo && (
                   <div className="combo-grid" style={{ marginTop: 12 }}>
-                    {Object.entries(msg.combo).map(([cat, item]) => (
+                    {Object.entries(msg.combo).map(([cat, item]) =>
+                      item.no_stock || !item.best ? (
+                        <NoStockCard
+                          key={cat}
+                          category={cat}
+                          sessionId={sessionId!}
+                          merchantSlug={merchantSlug}
+                        />
+                      ) : (
                       <ProductCard
                         key={cat}
                         category={cat}
@@ -961,7 +1146,8 @@ export default function WidgetPage() {
                         budget={budget}
                         onSwapped={handleSwapped}
                       />
-                    ))}
+                      )
+                    )}
                   </div>
                 )}
               </div>

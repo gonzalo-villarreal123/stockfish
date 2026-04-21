@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict
 from dotenv import load_dotenv
 from graph import run_intake, run_combo_search, swap_product, generic_search_by_category, analyze_image
-from db import create_session, upsert_session, get_session, update_session, get_session_by_token, get_product_categories, get_merchant_by_slug, save_search_event, persist_session_state, load_session_state
+from db import create_session, upsert_session, get_session, update_session, get_session_by_token, get_product_categories, get_merchant_by_slug, save_search_event, persist_session_state, load_session_state, save_feedback
 from tn_router import router as tn_router
 from scraper import ALL_MERCHANTS
 
@@ -148,6 +148,7 @@ class SwapRequest(BaseModel):
 
 class FeedbackRequest(BaseModel):
     session_id: Optional[str] = None
+    merchant_slug: Optional[str] = None
     category: str
     text: str
 
@@ -481,8 +482,23 @@ async def feedback(body: FeedbackRequest):
     """Recibe feedback del usuario cuando no encuentra lo que busca en una categoría."""
     from graph import CATEGORY_LABELS
     label = CATEGORY_LABELS.get(body.category, body.category)
-    print(f"[Feedback] Categoría: {label} | Texto: {body.text} | Sesión: {body.session_id}")
-    # TODO: persistir en Supabase (tabla search_feedback)
+    print(f"[Feedback] {label} | '{body.text}' | merchant={body.merchant_slug} | session={body.session_id}")
+
+    merchant_id = None
+    if body.merchant_slug:
+        merchant_id = await resolve_merchant_id(body.merchant_slug)
+
+    try:
+        await save_feedback({
+            "session_id": body.session_id,
+            "merchant_slug": body.merchant_slug,
+            "merchant_id": str(merchant_id) if merchant_id else None,
+            "category": body.category,
+            "text": body.text,
+        })
+    except Exception as e:
+        print(f"[Feedback] Error al guardar: {e}")
+
     return {"ok": True}
 
 
