@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Dict
 from dotenv import load_dotenv
-from graph import run_intake, run_combo_search, swap_product, generic_search_by_category, analyze_image
+from graph import run_intake, run_combo_search, swap_product, generic_search_by_category, analyze_image, run_interpret_refinement
 from db import create_session, upsert_session, get_session, update_session, get_session_by_token, get_product_categories, get_merchant_by_slug, save_search_event, persist_session_state, load_session_state, save_feedback
 from tn_router import router as tn_router
 from scraper import ALL_MERCHANTS
@@ -243,10 +243,82 @@ async def chat(body: ChatMessage):
         else:
             user_message = image_description
 
-    # Si ya tiene sesión activa y escribe algo nuevo → resetear
+    # Si tiene combo activo → interpretar como refinamiento, no resetear
     if step == "interactive":
-        session = {}
-        step = "intake"
+        refinement = await run_interpret_refinement(
+            user_message=user_message,
+            raw_intent=session.get("raw_intent", ""),
+            style_keywords=session.get("style_keywords", []),
+            style_tags=session.get("style_tags", []),
+            budget_total=session.get("budget_total"),
+            categories=session.get("selected_categories", []),
+        )
+        action = refinement.get("action", "unknown")
+        reply = refinement.get("reply", "")
+
+        if action == "unknown":
+            return ChatResponse(
+                session_id=session_id,
+                reply=reply,
+                step="interactive",
+                status="interactive",
+            )
+
+        if action == "reset":
+            session = {}
+            step = "intake"
+            # cae al flujo normal de intake abajo
+        else:
+            new_budget = refinement.get("new_budget") or session.get("budget_total")
+            new_keywords = refinement.get("new_style_keywords") or session.get("style_keywords", [])
+            new_tags = refinement.get("new_style_tags") or session.get("style_tags", [])
+            target_cat = refinement.get("target_category")
+
+            # Para adjust_category solo re-buscamos esa categoría
+            cats_to_search = (
+                [target_cat] if action == "adjust_category" and target_cat
+                else session.get("selected_categories", [])
+            )
+
+            combo_result = await run_combo_search(
+                session_id=session_id,
+                raw_intent=session.get("raw_intent", user_message),
+                style_keywords=new_keywords,
+                style_tags=new_tags,
+                selected_categories=cats_to_search,
+                budget_total=new_budget,
+                merchant_id=merchant_id,
+            )
+
+            new_combo = combo_result.get("combo", {})
+
+            # Para ajuste de categoría, mergeamos con el combo existente
+            if action == "adjust_category" and target_cat:
+                merged_combo = {**session.get("combo", {}), **new_combo}
+            else:
+                merged_combo = new_combo
+
+            updated_session = {
+                **session,
+                "style_keywords": new_keywords,
+                "style_tags": new_tags,
+                "budget_total": new_budget,
+                "combo": merged_combo,
+            }
+            await set_session_state(session_id, updated_session)
+
+            return ChatResponse(
+                session_id=session_id,
+                reply=reply,
+                combo=merged_combo,
+                step="interactive",
+                status="interactive",
+                context={
+                    "style_keywords": new_keywords,
+                    "style_tags": new_tags,
+                    "budget_total": new_budget,
+                },
+            )
 
     if step == "intake" or step == "awaiting_clarification":
         intake_result = await run_intake(session_id, user_message)

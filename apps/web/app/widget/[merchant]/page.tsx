@@ -1267,7 +1267,7 @@ export default function WidgetPage() {
             />
             <textarea
               className="text-input"
-              placeholder="Describí tu estilo o subí una foto…"
+              placeholder={step === "interactive" ? "Ajustá el estilo, presupuesto o una categoría…" : "Describí tu estilo o subí una foto…"}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}

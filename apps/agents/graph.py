@@ -385,6 +385,92 @@ design_graph = build_graph()
 
 # ── Funciones públicas ─────────────────────────────────────
 
+def interpret_refinement(
+    user_message: str,
+    raw_intent: str,
+    style_keywords: list,
+    style_tags: list,
+    budget_total,
+    categories: list,
+) -> dict:
+    """Interpreta un mensaje de ajuste sobre un combo activo.
+    Devuelve qué cambiar: presupuesto, estilo, categoría específica, o reset."""
+    cats_str = ", ".join(CATEGORY_LABELS.get(c, c) for c in categories)
+    budget_str = f"${budget_total:,.0f}" if budget_total else "sin límite"
+    style_str = ", ".join(style_tags) if style_tags else (", ".join(style_keywords[:3]) if style_keywords else "general")
+
+    prompt = f"""El usuario tiene un combo de decoración activo y envió un mensaje de ajuste.
+
+Estado actual del combo:
+- Búsqueda original: "{raw_intent}"
+- Estilo detectado: {style_str}
+- Presupuesto: {budget_str}
+- Categorías: {cats_str}
+
+Mensaje del usuario: "{user_message}"
+
+Interpretá qué quiere cambiar. Respondé ÚNICAMENTE con JSON válido:
+{{
+  "action": "adjust_budget" | "adjust_style" | "adjust_category" | "reset" | "unknown",
+  "new_budget": null,
+  "new_style_keywords": null,
+  "new_style_tags": null,
+  "target_category": null,
+  "reply": "respuesta breve y natural en primera persona del asistente"
+}}
+
+Reglas para action:
+- "adjust_budget": menciona precio, economía, más barato/caro, presupuesto, plata
+- "adjust_style": quiere cambiar el estilo general (nórdico, industrial, minimalista, bohemio...)
+- "adjust_category": habla de UNA categoría específica (lámpara/velador, mueble/sillón, textil/alfombra...)
+- "reset": quiere empezar de cero o buscar algo completamente diferente
+- "unknown": no está claro
+
+Campos según action:
+- new_budget: número en ARS si "adjust_budget", null sino
+- new_style_keywords: ["keywords"] si "adjust_style", null sino
+- new_style_tags: ["tags"] si "adjust_style", null sino
+- target_category: slug exacto (lampara/mueble/textil/cuadro/florero/escultura/espejo/planta) si "adjust_category", null sino
+- reply: lo que le decís al usuario. Ejemplos:
+    adjust_budget → "Perfecto, ajusto el presupuesto y busco opciones más económicas."
+    adjust_style → "Dale, busco con un estilo más industrial."
+    adjust_category → "Claro, busco otra lámpara con ese criterio."
+    reset → "¡Arrancamos de nuevo! Contame qué estilo tenés en mente."
+    unknown → "No entendí bien. ¿Querés cambiar el estilo, el presupuesto, o algo puntual?"
+
+Solo JSON, sin texto adicional."""
+
+    try:
+        response = anthropic_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=300,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return json.loads(response.content[0].text.strip())
+    except Exception as e:
+        print(f"[Refinement] Error: {e}")
+        return {"action": "unknown", "reply": "No entendí bien. ¿Querés cambiar el estilo, el presupuesto, o algo puntual?"}
+
+
+async def run_interpret_refinement(
+    user_message: str,
+    raw_intent: str,
+    style_keywords: list,
+    style_tags: list,
+    budget_total,
+    categories: list,
+) -> dict:
+    from concurrent.futures import ThreadPoolExecutor
+    import asyncio
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor() as pool:
+        result = await loop.run_in_executor(
+            pool, interpret_refinement,
+            user_message, raw_intent, style_keywords, style_tags, budget_total, categories,
+        )
+    return result
+
+
 async def run_intake(session_id: str, raw_intent: str) -> dict:
     """Solo ejecuta el intake para extraer estilo. No busca productos."""
     initial_state: DesignState = {
