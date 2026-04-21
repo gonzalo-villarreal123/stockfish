@@ -258,6 +258,76 @@ function ProductCard({
   );
 }
 
+// ── ComboSummaryBar ────────────────────────────────────────
+
+function ComboSummaryBar({
+  combo,
+  shareToken,
+  merchantSlug,
+}: {
+  combo: ComboData;
+  shareToken: string | null;
+  merchantSlug: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const items = Object.values(combo).filter((item) => item.best && !item.no_stock);
+  if (items.length === 0) return null;
+
+  const total = items.reduce((sum, item) => sum + (item.best?.price || 0), 0);
+
+  async function handleShare() {
+    if (!shareToken) return;
+    const url = `${window.location.origin}/compartir/${shareToken}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.open(url, "_blank");
+    }
+  }
+
+  return (
+    <div style={{
+      borderTop: "1px solid #1f1f1f",
+      padding: "10px 16px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      background: "#0d0d0d",
+      flexShrink: 0,
+    }}>
+      <div style={{ lineHeight: 1.3 }}>
+        <span style={{ fontSize: 11, color: "#555" }}>
+          {items.length} producto{items.length !== 1 ? "s" : ""}
+        </span>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>
+          {formatPrice(total)}
+        </div>
+      </div>
+      {shareToken && (
+        <button
+          onClick={handleShare}
+          style={{
+            background: copied ? "#1a3a1a" : "transparent",
+            border: `1px solid ${copied ? "#2a6a2a" : "#333"}`,
+            color: copied ? "#6ee36e" : "#aaa",
+            fontSize: 12,
+            padding: "6px 14px",
+            borderRadius: 8,
+            cursor: "pointer",
+            transition: "all 0.2s",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {copied ? "¡Link copiado!" : "Compartir ↗"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Main Widget ────────────────────────────────────────────
 
 export default function WidgetPage() {
@@ -282,6 +352,7 @@ export default function WidgetPage() {
   const [noBudgetLimit, setNoBudgetLimit] = useState(false);
   const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
   const [combo, setCombo] = useState<ComboData | null>(null);
+  const [shareToken, setShareToken] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -389,6 +460,7 @@ export default function WidgetPage() {
       } else if (data.step === "interactive" && data.combo) {
         setStep("interactive");
         setCombo(data.combo);
+        if (data.share_token) setShareToken(data.share_token);
         capture("widget_combo_shown", {
           merchant_slug: merchantSlug,
           session_id: data.session_id,
@@ -441,6 +513,7 @@ export default function WidgetPage() {
 
       setStep("interactive");
       setCombo(data.combo);
+      if (data.share_token) setShareToken(data.share_token);
       capture("widget_combo_shown", {
         merchant_slug: merchantSlug,
         session_id: pendingSessionId,
@@ -967,6 +1040,15 @@ export default function WidgetPage() {
             {error && <div className="error-banner">{error}</div>}
             <div ref={messagesEndRef} />
           </div>
+        )}
+
+        {/* Resumen del combo */}
+        {step === "interactive" && combo && (
+          <ComboSummaryBar
+            combo={combo}
+            shareToken={shareToken}
+            merchantSlug={merchantSlug}
+          />
         )}
 
         {/* Input bar */}
