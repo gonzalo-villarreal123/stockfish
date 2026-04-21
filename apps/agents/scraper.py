@@ -338,6 +338,36 @@ async def get_product_urls(page, base_url: str, limit: Optional[int] = None) -> 
     return result
 
 
+def _extract_slug_from_url(store_url: str) -> tuple[str, str]:
+    """Extrae (slug, base_url) de una URL de Tienda Nube."""
+    from urllib.parse import urlparse
+    if not store_url.startswith("http"):
+        store_url = "https://" + store_url
+    parsed = urlparse(store_url)
+    hostname = parsed.hostname or ""
+    base_url = f"{parsed.scheme}://{hostname}"
+    if "mitiendanube.com" in hostname or "tiendanube.com" in hostname:
+        slug = hostname.split(".")[0]
+    else:
+        # Dominio propio: sanitizar como slug
+        slug = re.sub(r"[^a-z0-9\-]", "", hostname.replace("www.", "").split(".")[0].lower())
+    return slug, base_url
+
+
+async def scrape_merchant_by_url(store_url: str, name: Optional[str] = None, limit: Optional[int] = None):
+    """Registra y scrapea una tienda Tienda Nube dada su URL. No requiere que esté en ALL_MERCHANTS."""
+    from db import create_or_get_merchant
+    slug, base_url = _extract_slug_from_url(store_url)
+    display_name = name or slug.capitalize()
+    print(f"\n🔗 Registrando tienda: {display_name} ({base_url})")
+    merchant = await create_or_get_merchant(slug, display_name, base_url)
+    if not merchant.get("id"):
+        print("Error: no se pudo crear/recuperar el merchant en Supabase")
+        return
+    print(f"✓ Merchant '{slug}' listo en Supabase")
+    await scrape_merchant(slug, limit)
+
+
 async def scrape_merchant(merchant_slug: str, limit: Optional[int] = None):
     merchant = await get_merchant_by_slug(merchant_slug)
     if not merchant:
@@ -407,14 +437,20 @@ async def scrape_merchant(merchant_slug: str, limit: Optional[int] = None):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--merchant", required=False, choices=ALL_MERCHANTS,
-                        help="Slug del merchant a scrapear. Omitir para scrapear todos.")
-    parser.add_argument("--all", action="store_true", help="Scrapear todos los merchants activos")
-    parser.add_argument("--limit", type=int, default=None)
+    parser = argparse.ArgumentParser(description="Scraper de tiendas Tienda Nube para Stockfish")
+    parser.add_argument("--merchant", required=False,
+                        help="Slug del merchant (debe existir en Supabase)")
+    parser.add_argument("--url", required=False,
+                        help="URL de la tienda (crea el merchant si no existe). Ej: mititienda.mitiendanube.com")
+    parser.add_argument("--name", required=False,
+                        help="Nombre de la tienda (usado con --url)")
+    parser.add_argument("--all", action="store_true", help="Scrapear todos los merchants en ALL_MERCHANTS")
+    parser.add_argument("--limit", type=int, default=None, help="Límite de productos a scrapear")
     args = parser.parse_args()
 
-    if args.all:
+    if args.url:
+        asyncio.run(scrape_merchant_by_url(args.url, args.name, args.limit))
+    elif args.all:
         async def scrape_all():
             for slug in ALL_MERCHANTS:
                 await scrape_merchant(slug, args.limit)
@@ -422,4 +458,4 @@ if __name__ == "__main__":
     elif args.merchant:
         asyncio.run(scrape_merchant(args.merchant, args.limit))
     else:
-        parser.error("Especificar --merchant SLUG o usar --all")
+        parser.error("Especificar --url URL, --merchant SLUG, o usar --all")

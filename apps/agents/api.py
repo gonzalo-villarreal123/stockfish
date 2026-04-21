@@ -14,9 +14,10 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict
 from dotenv import load_dotenv
 from graph import run_intake, run_combo_search, swap_product, generic_search_by_category, analyze_image, run_interpret_refinement
-from db import create_session, upsert_session, get_session, update_session, get_session_by_token, get_product_categories, get_merchant_by_slug, save_search_event, persist_session_state, load_session_state, save_feedback
+from urllib.parse import urlparse
+from db import create_session, upsert_session, get_session, update_session, get_session_by_token, get_product_categories, get_merchant_by_slug, save_search_event, persist_session_state, load_session_state, save_feedback, create_or_get_merchant, get_latest_scraping_job
 from tn_router import router as tn_router
-from scraper import ALL_MERCHANTS
+from scraper import ALL_MERCHANTS, _extract_slug_from_url
 
 load_dotenv()
 
@@ -582,20 +583,105 @@ async def get_session_endpoint(session_id: str):
     return session
 
 
+# ── Onboarding de merchants ────────────────────────────────
+
+class OnboardRequest(BaseModel):
+    store_url: str
+    name: Optional[str] = None
+    email: Optional[str] = None
+    limit: Optional[int] = None
+
+
+@app.post("/onboard")
+async def onboard(body: OnboardRequest, background_tasks: BackgroundTasks):
+    """
+    Da de alta una tienda Tienda Nube nueva:
+    1. Extrae slug de la URL
+    2. Crea el merchant en Supabase si no existe
+    3. Lanza el scraper en background
+    4. Devuelve slug + snippet de embed
+    """
+    store_url = body.store_url.strip()
+    if not store_url.startswith("http"):
+        store_url = "https://" + store_url
+
+    slug, base_url = _extract_slug_from_url(store_url)
+    if not slug:
+        raise HTTPException(status_code=400, detail="No se pudo extraer el slug de la URL")
+
+    name = body.name or slug.replace("-", " ").title()
+
+    # Crear o recuperar merchant
+    merchant = await create_or_get_merchant(slug, name, base_url)
+    merchant_id = merchant.get("id")
+    if not merchant_id:
+        raise HTTPException(status_code=500, detail="Error creando merchant en Supabase")
+
+    # Lanzar scraper como subprocess en background
+    def _run_scraper():
+        cmd = ["python", "scraper.py", "--url", store_url, "--name", name]
+        if body.limit:
+            cmd += ["--limit", str(body.limit)]
+        result = subprocess.run(cmd, capture_output=True, text=True, cwd="/app")
+        status = "OK" if result.returncode == 0 else "ERR"
+        print(f"[onboard] scraper {slug}: {status}")
+        if result.returncode != 0:
+            print(result.stderr[:500])
+
+    background_tasks.add_task(_run_scraper)
+
+    snippet = (
+        f"<script>\n"
+        f"(function(){{\n"
+        f"  var iframe = document.createElement('iframe');\n"
+        f"  iframe.src = 'https://focobusiness.com/widget/{slug}';\n"
+        f"  iframe.style.cssText = 'position:fixed;bottom:20px;right:20px;"
+        f"width:420px;height:620px;border:none;z-index:9999;"
+        f"border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.25)';\n"
+        f"  iframe.allow = 'clipboard-write';\n"
+        f"  document.body.appendChild(iframe);\n"
+        f"}})();\n"
+        f"</script>"
+    )
+
+    return {
+        "ok": True,
+        "merchant_slug": slug,
+        "merchant_id": merchant_id,
+        "widget_url": f"https://focobusiness.com/widget/{slug}",
+        "embed_snippet": snippet,
+        "message": f"Merchant '{name}' registrado. El scraper está procesando el catálogo.",
+    }
+
+
+@app.get("/onboard/status/{slug}")
+async def onboard_status(slug: str):
+    """Devuelve el estado del último scraping job de un merchant."""
+    merchant = await get_merchant_by_slug(slug)
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant no encontrado")
+
+    job = await get_latest_scraping_job(merchant["id"])
+    if not job:
+        return {"status": "pending", "products_found": 0, "products_added": 0, "merchant_slug": slug}
+
+    return {
+        "merchant_slug": slug,
+        "status": job.get("status", "pending"),
+        "products_found": job.get("products_found") or 0,
+        "products_added": job.get("products_added") or 0,
+        "started_at": job.get("started_at"),
+        "completed_at": job.get("completed_at"),
+        "error": job.get("error_message"),
+    }
+
+
 @app.post("/scrape/{merchant_slug}")
 async def trigger_scrape(merchant_slug: str, background_tasks: BackgroundTasks, limit: Optional[int] = None):
-    """
-    Lanza el scraper HTML (playwright) para un merchant en segundo plano.
-    Requiere que el entorno tenga playwright instalado con los browsers.
-    Útil para workers Render separados o entornos locales.
-    """
-    if merchant_slug not in ALL_MERCHANTS:
-        raise HTTPException(status_code=404, detail=f"Merchant '{merchant_slug}' no registrado. Opciones: {ALL_MERCHANTS}")
-
-    # Verificar que el merchant exista en la DB
+    """Lanza el scraper para un merchant que ya existe en Supabase."""
     m = await get_merchant_by_slug(merchant_slug)
     if not m:
-        raise HTTPException(status_code=404, detail=f"Merchant '{merchant_slug}' no encontrado en la base de datos")
+        raise HTTPException(status_code=404, detail=f"Merchant '{merchant_slug}' no encontrado en Supabase")
 
     def _run_scraper():
         cmd = ["python", "scraper.py", "--merchant", merchant_slug]

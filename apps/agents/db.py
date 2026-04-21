@@ -190,6 +190,39 @@ async def get_session_by_token(share_token: str) -> Optional[dict]:
 
 # ── Scraping Jobs ──────────────────────────────────────────
 
+async def create_or_get_merchant(slug: str, name: str, base_url: str) -> dict:
+    """Crea un merchant nuevo o devuelve el existente si el slug ya existe."""
+    existing = await get_merchant_by_slug(slug)
+    if existing:
+        return existing
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            rest("merchants"),
+            headers={**HEADERS, "Prefer": "return=representation"},
+            json={"slug": slug, "name": name, "base_url": base_url, "active": True},
+        )
+        r.raise_for_status()
+        data = r.json()
+        return data[0] if data else {}
+
+
+async def get_latest_scraping_job(merchant_id: str) -> Optional[dict]:
+    """Devuelve el último scraping job de un merchant."""
+    async with httpx.AsyncClient() as client:
+        r = await client.get(
+            rest("scraping_jobs"),
+            headers=HEADERS,
+            params={
+                "merchant_id": f"eq.{merchant_id}",
+                "order": "created_at.desc",
+                "limit": "1",
+            }
+        )
+        r.raise_for_status()
+        data = r.json()
+        return data[0] if data else None
+
+
 async def create_scraping_job(merchant_id: str) -> dict:
     async with httpx.AsyncClient() as client:
         r = await client.post(
