@@ -105,7 +105,7 @@ export default function AltaPage() {
       const data = await res.json();
       setSlug(data.merchant_slug);
       setSnippet(data.embed_snippet);
-      setStep("processing");
+      setStep("done"); // el merchant se crea en Supabase; scraping es local
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Error desconocido");
     } finally {
@@ -374,6 +374,27 @@ export default function AltaPage() {
                 fontFamily: "'SF Mono', 'Fira Code', monospace",
               }}>
                 {snippet}
+              </pre>
+            </div>
+
+            {/* Comando local para scraping */}
+            <div style={{
+              background: "#0d0d0d",
+              border: "1px solid #1e1e1e",
+              borderRadius: 10,
+              padding: 16,
+              marginBottom: 16,
+            }}>
+              <div style={{ fontSize: 12, color: "#555", marginBottom: 8 }}>
+                Paso 2 — Indexar el catálogo (correr localmente en la terminal)
+              </div>
+              <pre style={{
+                fontSize: 12,
+                color: "#aaa",
+                margin: 0,
+                fontFamily: "'SF Mono', 'Fira Code', monospace",
+              }}>
+                {`python scraper.py --url ${storeUrl}`}
               </pre>
             </div>
 

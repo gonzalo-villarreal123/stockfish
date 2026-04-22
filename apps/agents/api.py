@@ -617,18 +617,10 @@ async def onboard(body: OnboardRequest, background_tasks: BackgroundTasks):
     if not merchant_id:
         raise HTTPException(status_code=500, detail="Error creando merchant en Supabase")
 
-    # Lanzar scraper como subprocess en background
-    def _run_scraper():
-        cmd = ["python", "scraper.py", "--url", store_url, "--name", name]
-        if body.limit:
-            cmd += ["--limit", str(body.limit)]
-        result = subprocess.run(cmd, capture_output=True, text=True, cwd="/app")
-        status = "OK" if result.returncode == 0 else "ERR"
-        print(f"[onboard] scraper {slug}: {status}")
-        if result.returncode != 0:
-            print(result.stderr[:500])
-
-    background_tasks.add_task(_run_scraper)
+    # El scraper requiere Playwright (solo disponible localmente, no en Render).
+    # El merchant queda registrado en Supabase — el scraping se corre localmente:
+    # python scraper.py --url {store_url} --name "{name}"
+    print(f"[onboard] Merchant '{slug}' registrado. Scraping pendiente (correr localmente).")
 
     snippet = (
         f"<script>\n"
