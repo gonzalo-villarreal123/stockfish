@@ -209,9 +209,123 @@
     .features { grid-template-columns: 1fr; }
     .stat-val { font-size: 36px; }
   }
+
+  /* ── Modal de contacto ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 20px;
+    padding: 40px;
+    width: 100%;
+    max-width: 480px;
+    position: relative;
+  }
+  .modal-close {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    background: none;
+    border: none;
+    color: #555;
+    font-size: 22px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .modal-close:hover { color: #fff; }
+  .modal h3 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .modal p { font-size: 13px; color: #666; margin-bottom: 24px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 12px; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-group input,
+  .form-group textarea {
+    width: 100%;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: #fff;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .form-group input:focus,
+  .form-group textarea:focus { border-color: #444; }
+  .form-group textarea { resize: vertical; min-height: 100px; }
+  .form-submit {
+    width: 100%;
+    background: #fff;
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    padding: 13px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+    margin-top: 8px;
+  }
+  .form-submit:hover { background: #eee; }
+  .form-submit:disabled { opacity: 0.5; cursor: default; }
+  .form-success {
+    text-align: center;
+    padding: 20px 0;
+  }
+  .form-success .check {
+    font-size: 40px;
+    margin-bottom: 12px;
+  }
+  .form-success p { color: #ccc; font-size: 15px; }
 </style>
 </head>
 <body>
+
+<!-- ── Modal de contacto ── -->
+<div class="modal-overlay" id="contactModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="formContent">
+      <h3>Hablemos</h3>
+      <p>Dejanos tu info y te contactamos en menos de 24hs.</p>
+      <!-- ⚠️ Reemplazá YOUR_FORMSPREE_ID con tu ID de formspree.io -->
+      <form id="contactForm" action="https://formspree.io/f/YOUR_FORMSPREE_ID" method="POST">
+        <div class="form-group">
+          <label>Nombre</label>
+          <input type="text" name="nombre" placeholder="Tu nombre" required>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" name="email" placeholder="tu@email.com" required>
+        </div>
+        <div class="form-group">
+          <label>Tienda</label>
+          <input type="text" name="tienda" placeholder="Nombre o URL de tu tienda">
+        </div>
+        <div class="form-group">
+          <label>Mensaje</label>
+          <textarea name="mensaje" placeholder="¿Qué querés saber?"></textarea>
+        </div>
+        <button type="submit" class="form-submit" id="submitBtn">Enviar mensaje →</button>
+      </form>
+    </div>
+    <div id="formSuccess" class="form-success" style="display:none">
+      <div class="check">✓</div>
+      <p>¡Mensaje recibido!<br>Te contactamos en menos de 24hs.</p>
+    </div>
+  </div>
+</div>
 
 <nav class="nav">
   <a href="#s1"></a>
@@ -418,13 +532,54 @@
   </div>
 
   <div style="margin-top: 40px;">
-    <a href="mailto:villarrealgonzalo.m@gmail.com?subject=Quiero%20saber%20m%C3%A1s%20sobre%20Stockfish"
-       style="display:inline-block;background:#000;color:#fff;padding:14px 28px;border-radius:12px;font-size:14px;font-weight:600;text-decoration:none;">
-      Escribinos →
-    </a>
-    <div style="margin-top:12px;font-size:12px;color:#aaa;">villarrealgonzalo.m@gmail.com</div>
+    <button onclick="openModal()"
+       style="background:#000;color:#fff;padding:14px 28px;border-radius:12px;font-size:14px;font-weight:600;border:none;cursor:pointer;">
+      Dejá tu mensaje →
+    </button>
+    <div style="margin-top:12px;font-size:12px;color:#aaa;">o escribinos a villarrealgonzalo.m@gmail.com</div>
   </div>
 </section>
 
+<script>
+  function openModal() {
+    document.getElementById('contactModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal() {
+    document.getElementById('contactModal').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  // Cerrar con Escape
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+  // Cerrar clickeando fuera del modal
+  document.getElementById('contactModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  // Submit via fetch (sin redirigir)
+  document.getElementById('contactForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+    try {
+      const res = await fetch(this.action, {
+        method: 'POST',
+        body: new FormData(this),
+        headers: { 'Accept': 'application/json' }
+      });
+      if (res.ok) {
+        document.getElementById('formContent').style.display = 'none';
+        document.getElementById('formSuccess').style.display = 'block';
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Error — intentá de nuevo';
+      }
+    } catch {
+      btn.disabled = false;
+      btn.textContent = 'Error — intentá de nuevo';
+    }
+  });
+</script>
 </body>
 </html>
