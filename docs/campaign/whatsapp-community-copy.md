@@ -85,7 +85,7 @@ Gratis y sin registro: stockfish.ar/lanzamiento?utm_source=whatsapp&utm_medium=c
 
 Cuando alguien pregunte "¿de dónde sacan los productos?" o "¿tiene X tienda?":
 
-> Las tiendas que tiene ahora son Diderot, Garbo, Holy Haus y Pacify. Van sumando más.
+> Por ahora está integrado con Alto Rancho como tienda piloto. Están sumando más tiendas.
 
 Cuando pregunten "¿se puede usar en celular?":
 

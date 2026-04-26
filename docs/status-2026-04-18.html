@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stockfish — Status 18 abril 2026</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0a0a0a;
+      color: #d4d4d4;
+      padding: 48px 24px;
+      line-height: 1.6;
+    }
+    .container { max-width: 860px; margin: 0 auto; }
+
+    header { margin-bottom: 48px; }
+    header h1 { font-size: 2rem; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+    header p { color: #666; font-size: 0.9rem; margin-top: 4px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #1a1a1a; border: 1px solid #2a2a2a;
+      border-radius: 999px; padding: 4px 12px;
+      font-size: 0.75rem; color: #aaa; margin-top: 12px;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    section { margin-bottom: 40px; }
+    h2 {
+      font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #555; margin-bottom: 16px;
+      padding-bottom: 8px; border-bottom: 1px solid #1e1e1e;
+    }
+
+    /* Stack cards */
+    .stack-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+    .stack-card {
+      background: #141414; border: 1px solid #222; border-radius: 12px;
+      padding: 16px;
+    }
+    .stack-card .label { font-size: 0.7rem; color: #555; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+    .stack-card .value { font-size: 0.9rem; color: #e5e5e5; font-weight: 500; }
+    .stack-card .sub { font-size: 0.75rem; color: #555; margin-top: 2px; }
+    .tag {
+      display: inline-block; font-size: 0.65rem; font-weight: 600;
+      padding: 2px 8px; border-radius: 4px; margin-left: 6px;
+      vertical-align: middle;
+    }
+    .tag.live { background: #14532d; color: #4ade80; }
+    .tag.pilot { background: #1e3a5f; color: #60a5fa; }
+
+    /* Done list */
+    .done-list { display: flex; flex-direction: column; gap: 10px; }
+    .done-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      background: #141414; border: 1px solid #1e1e1e;
+      border-radius: 10px; padding: 14px 16px;
+    }
+    .done-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+    .done-title { font-size: 0.875rem; color: #e5e5e5; font-weight: 500; }
+    .done-desc { font-size: 0.775rem; color: #666; margin-top: 2px; }
+
+    /* Next steps */
+    .next-list { display: flex; flex-direction: column; gap: 10px; }
+    .next-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      background: #141414; border: 1px solid #262626;
+      border-radius: 10px; padding: 14px 16px;
+    }
+    .next-num {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: #222; border: 1px solid #333;
+      font-size: 0.7rem; font-weight: 700; color: #888;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .next-title { font-size: 0.875rem; color: #e5e5e5; font-weight: 500; }
+    .next-desc { font-size: 0.775rem; color: #666; margin-top: 2px; }
+    .next-owner { font-size: 0.7rem; font-weight: 600; margin-top: 4px; }
+    .owner-you { color: #facc15; }
+    .owner-cto { color: #60a5fa; }
+    .owner-cmo { color: #c084fc; }
+
+    /* Priority */
+    .priority-high { border-left: 3px solid #ef4444; }
+    .priority-med  { border-left: 3px solid #f59e0b; }
+    .priority-low  { border-left: 3px solid #3f3f3f; }
+
+    /* Metrics */
+    .metrics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+    .metric-card {
+      background: #141414; border: 1px solid #222; border-radius: 12px;
+      padding: 20px 16px; text-align: center;
+    }
+    .metric-value { font-size: 2rem; font-weight: 800; color: #fff; }
+    .metric-label { font-size: 0.7rem; color: #555; margin-top: 4px; }
+
+    footer { margin-top: 60px; text-align: center; font-size: 0.75rem; color: #333; }
+    a { color: #60a5fa; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code {
+      font-family: "SF Mono", "Fira Code", monospace;
+      background: #1a1a1a; border: 1px solid #2a2a2a;
+      padding: 1px 6px; border-radius: 4px; font-size: 0.8rem; color: #a78bfa;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Stockfish</h1>
+    <p>Sesión de trabajo — 18 de abril de 2026</p>
+    <div class="badge">
+      <span class="dot"></span>
+      Widget activo en producción · piloto altorancho
+    </div>
+  </header>
+
+  <!-- Stack -->
+  <section>
+    <h2>Stack en producción</h2>
+    <div class="stack-grid">
+      <div class="stack-card">
+        <div class="label">Frontend</div>
+        <div class="value">Next.js <span class="tag live">LIVE</span></div>
+        <div class="sub"><a href="https://stockfish.ar" target="_blank">stockfish.ar</a> · Netlify</div>
+      </div>
+      <div class="stack-card">
+        <div class="label">Backend</div>
+        <div class="value">FastAPI <span class="tag live">LIVE</span></div>
+        <div class="sub"><a href="https://stockfish-agents.onrender.com" target="_blank">onrender.com</a></div>
+      </div>
+      <div class="stack-card">
+        <div class="label">Base de datos</div>
+        <div class="value">Supabase · pgvector</div>
+        <div class="sub">8 merchants · voyage-3-lite</div>
+      </div>
+      <div class="stack-card">
+        <div class="label">Analytics</div>
+        <div class="value">PostHog <span class="tag live">LIVE</span></div>
+        <div class="sub">live events activos</div>
+      </div>
+      <div class="stack-card">
+        <div class="label">Orquestación</div>
+        <div class="value">Paperclip</div>
+        <div class="sub">CEO · CTO · CMO · local 3100</div>
+      </div>
+      <div class="stack-card">
+        <div class="label">Piloto activo</div>
+        <div class="value">altorancho <span class="tag pilot">B2B</span></div>
+        <div class="sub">148 productos · widget embebido</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Métricas clave -->
+  <section>
+    <h2>Estado del catálogo</h2>
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-value">8</div>
+        <div class="metric-label">Merchants en Supabase</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value">1</div>
+        <div class="metric-label">Piloto activo (altorancho)</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value">148</div>
+        <div class="metric-label">Productos indexados</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value">200M</div>
+        <div class="metric-label">Tokens Voyage AI disponibles</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Lo que hicimos hoy -->
+  <section>
+    <h2>Completado hoy</h2>
+    <div class="done-list">
+
+      <div class="done-item">
+        <span class="done-icon">✓</span>
+        <div>
+          <div class="done-title">Migración Railway → Render.com</div>
+          <div class="done-desc">Dockerfile slim sin Playwright. Backend live en <code>stockfish-agents.onrender.com</code>. Trial de Railway expiró.</div>
+        </div>
+      </div>
+
+      <div class="done-item">
+        <span class="done-icon">✓</span>
+        <div>
+          <div class="done-title">Fix búsqueda: word boundaries</div>
+          <div class="done-desc"><code>"vela" in "velador"</code> daba falso positivo. Reemplazado por <code>\b</code> regex. Ya no detecta categorías incorrectas.</div>
+        </div>
+      </div>
+
+      <div class="done-item">
+        <span class="done-icon">✓</span>
+        <div>
+          <div class="done-title">Fix búsqueda: sinónimos español→inglés</div>
+          <div class="done-desc"><code>QUERY_SYNONYMS</code> + <code>enrich_query()</code>. "hongo" → busca "mushroom fungi". Resultado: Velador Fancy Mushroom Mocha Mouse encontrado.</div>
+        </div>
+      </div>
+
+      <div class="done-item">
+        <span class="done-icon">✓</span>
+        <div>
+          <div class="done-title">Fix intake: prompt más estricto</div>
+          <div class="done-desc">Claude dejó de inferir categorías extra. Búsqueda de 1 producto ya no fuerza un combo de 4. <code>raw_intent</code> como query para categoría única.</div>
+        </div>
+      </div>
+
+      <div class="done-item">
+        <span class="done-icon">✓</span>
+        <div>
+          <div class="done-title">Fix Supabase: categoría Petite Fungi Mostaza</div>
+          <div class="done-desc">Estaba catalogada como <code>mueble</code>. Corregida a <code>lampara</code> directamente en Supabase.</div>
+        </div>
+      </div>
+
+      <div class="done-item">
+        <span class="done-icon">✓</span>
+        <div>
+          <div class="done-title">PostHog Analytics integrado</div>
+          <div class="done-desc">CTO implementó tracking de <code>widget_opened</code>, <code>widget_add_to_cart</code>, <code>widget_product_swapped</code>, <code>widget_product_viewed</code>. Live events confirmados.</div>
+        </div>
+      </div>
+
+      <div class="done-item">
+        <span class="done-icon">✓</span>
+        <div>
+          <div class="done-title">Landing de lanzamiento + waitlist</div>
+          <div class="done-desc">CMO armó <code>/lanzamiento</code> con hero, features, social proof y captura de email. Waitlist guarda en Supabase con UTMs.</div>
+        </div>
+      </div>
+
+      <div class="done-item">
+        <span class="done-icon">✓</span>
+        <div>
+          <div class="done-title">Copy WhatsApp para lanzamiento</div>
+          <div class="done-desc">4 variantes (A: hook corto, B: orgánico, C: profesionales, D: propietarios) con UTMs. Merchants corregidos a altorancho como piloto activo.</div>
+        </div>
+      </div>
+
+      <div class="done-item">
+        <span class="done-icon">✓</span>
+        <div>
+          <div class="done-title">SUPABASE_SERVICE_ROLE_KEY en Netlify</div>
+          <div class="done-desc">Variable privada agregada. El form de waitlist en <code>/lanzamiento</code> ya puede persistir emails en Supabase.</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Next steps -->
+  <section>
+    <h2>Próximos pasos</h2>
+    <div class="next-list">
+
+      <div class="next-item priority-high">
+        <div class="next-num">1</div>
+        <div>
+          <div class="next-title">Mandar mensajes de WhatsApp</div>
+          <div class="next-desc">Copiar variantes del archivo <code>docs/campaign/whatsapp-community-copy.md</code> y postear en grupos de deco.</div>
+          <div class="next-owner owner-you">→ Vos</div>
+        </div>
+      </div>
+
+      <div class="next-item priority-high">
+        <div class="next-num">2</div>
+        <div>
+          <div class="next-title">Revisar tn_router (Tienda Nube)</div>
+          <div class="next-desc">El CTO agregó <code>from tn_router import router as tn_router</code> en <code>api.py</code>. No revisamos ese archivo todavía. Puede ser integración con TiendaNube para onboarding de merchants.</div>
+          <div class="next-owner owner-cto">→ Revisar con CTO</div>
+        </div>
+      </div>
+
+      <div class="next-item priority-med">
+        <div class="next-num">3</div>
+        <div>
+          <div class="next-title">Persistir /track y /feedback en Supabase</div>
+          <div class="next-desc">Los endpoints existen pero tienen <code># TODO</code>. Sin persistencia no hay atribución ni feedback loop real. Tabla <code>conversion_events</code> y <code>search_feedback</code>.</div>
+          <div class="next-owner owner-cto">→ CTO (STO pendiente)</div>
+        </div>
+      </div>
+
+      <div class="next-item priority-med">
+        <div class="next-num">4</div>
+        <div>
+          <div class="next-title">Pipeline de nuevos merchants</div>
+          <div class="next-desc">CMO investigando (STO-26). Con altorancho como caso testigo, el pitch para el segundo merchant está más claro.</div>
+          <div class="next-owner owner-cmo">→ CMO + Vos</div>
+        </div>
+      </div>
+
+      <div class="next-item priority-low">
+        <div class="next-num">5</div>
+        <div>
+          <div class="next-title">Verificar tabla waitlist en Supabase</div>
+          <div class="next-desc">Confirmar que la tabla <code>waitlist</code> existe con las columnas correctas (email, utm_source, utm_medium, utm_campaign, utm_content, referral_code). Si no existe, crearla.</div>
+          <div class="next-owner owner-you">→ Vos (2 min en Supabase)</div>
+        </div>
+      </div>
+
+      <div class="next-item priority-low">
+        <div class="next-num">6</div>
+        <div>
+          <div class="next-title">Mejorar calidad de catálogos</div>
+          <div class="next-desc">Los resultados mejoran con descripciones más ricas en los productos. Oportunidad: enriquecer el catálogo de altorancho con más keywords de estilo.</div>
+          <div class="next-owner owner-you">→ Backlog</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Links rápidos -->
+  <section>
+    <h2>Links útiles</h2>
+    <div class="stack-grid">
+      <div class="stack-card">
+        <div class="label">Widget live</div>
+        <div class="value"><a href="https://stockfish.ar/widget/altorancho" target="_blank">altorancho →</a></div>
+      </div>
+      <div class="stack-card">
+        <div class="label">Landing lanzamiento</div>
+        <div class="value"><a href="https://stockfish.ar/lanzamiento" target="_blank">stockfish.ar/lanzamiento →</a></div>
+      </div>
+      <div class="stack-card">
+        <div class="label">PostHog</div>
+        <div class="value"><a href="https://app.posthog.com" target="_blank">Dashboard →</a></div>
+      </div>
+      <div class="stack-card">
+        <div class="label">Paperclip</div>
+        <div class="value"><a href="http://localhost:3100" target="_blank">localhost:3100 →</a></div>
+      </div>
+      <div class="stack-card">
+        <div class="label">Backend health</div>
+        <div class="value"><a href="https://stockfish-agents.onrender.com/health" target="_blank">/health →</a></div>
+      </div>
+      <div class="stack-card">
+        <div class="label">Repo</div>
+        <div class="value"><a href="https://github.com/gonzalo-villarreal123/stockfish" target="_blank">GitHub →</a></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Generado el 18 de abril de 2026 · Stockfish B2B Widget v2.1
+  </footer>
+
+</div>
+</body>
+</html>
