@@ -154,8 +154,12 @@ async def scrape_product_page(page, url: str) -> Optional[dict]:
         if price_el:
             raw = price_el.get("data-product-price")
             if raw:
-                # data-product-price está en centavos
-                price = int(raw) / 100
+                try:
+                    raw_float = float(raw)
+                    # Si el valor es > 10000 ya está en pesos; si no, está en centavos
+                    price = raw_float if raw_float > 1000 else raw_float / 100
+                except ValueError:
+                    price = parse_price_ars(raw)
             else:
                 price = parse_price_ars(price_el.get_text(strip=True))
 
@@ -305,7 +309,7 @@ async def get_product_urls(page, base_url: str, limit: Optional[int] = None) -> 
             continue
 
     if not active_prefix:
-        print(f"  ⚠ No se encontró catálogo en {base_url} (probado: {PATH_PREFIXES})")
+        print(f"  [!] No se encontro catalogo en {base_url} (probado: {PATH_PREFIXES})")
         return []
 
     urls = set()
@@ -359,24 +363,25 @@ async def scrape_merchant_by_url(store_url: str, name: Optional[str] = None, lim
     from db import create_or_get_merchant
     slug, base_url = _extract_slug_from_url(store_url)
     display_name = name or slug.capitalize()
-    print(f"\n🔗 Registrando tienda: {display_name} ({base_url})")
+    print(f"\n[Onboard] Registrando tienda: {display_name} ({base_url})")
     merchant = await create_or_get_merchant(slug, display_name, base_url)
     if not merchant.get("id"):
         print("Error: no se pudo crear/recuperar el merchant en Supabase")
         return
-    print(f"✓ Merchant '{slug}' listo en Supabase")
-    await scrape_merchant(slug, limit)
+    print(f"[OK] Merchant '{slug}' listo en Supabase")
+    # Scrapear usando la URL provista (no la guardada en Supabase, que puede ser un dominio propio)
+    await scrape_merchant(slug, limit, base_url_override=base_url)
 
 
-async def scrape_merchant(merchant_slug: str, limit: Optional[int] = None):
+async def scrape_merchant(merchant_slug: str, limit: Optional[int] = None, base_url_override: Optional[str] = None):
     merchant = await get_merchant_by_slug(merchant_slug)
     if not merchant:
         print(f"Merchant '{merchant_slug}' no encontrado.")
         return
 
     merchant_id = merchant["id"]
-    base_url = merchant["base_url"].rstrip("/")
-    print(f"\n🛒 Scrapeando {merchant['name']} ({base_url})")
+    base_url = (base_url_override or merchant["base_url"]).rstrip("/")
+    print(f"\n[Scraper] {merchant['name']} ({base_url})")
 
     job = await create_scraping_job(merchant_id)
     job_id = job.get("id")
@@ -407,9 +412,9 @@ async def scrape_merchant(merchant_slug: str, limit: Optional[int] = None):
                     try:
                         await upsert_product(merchant_id, product_data)
                         products_added += 1
-                        print(f"    ✓ {product_data['name'][:50]} — ${product_data['price']:,.0f}")
+                        print(f"    [+] {product_data['name'][:50]} -- ${product_data['price']:,.0f}")
                     except Exception as e:
-                        print(f"    ✗ Error guardando: {e}")
+                        print(f"    [!] Error guardando: {e}")
                 else:
                     print(f"    - Sin datos")
 
@@ -433,7 +438,7 @@ async def scrape_merchant(merchant_slug: str, limit: Optional[int] = None):
         "completed_at": datetime.now().isoformat()
     })
 
-    print(f"\n✅ Completado: {products_added}/{products_found} productos guardados")
+    print(f"\n[OK] Completado: {products_added}/{products_found} productos guardados")
 
 
 if __name__ == "__main__":
