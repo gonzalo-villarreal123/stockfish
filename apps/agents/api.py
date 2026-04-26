@@ -44,8 +44,8 @@ CATEGORY_GROUPS = {
     "decoracion":  {"label": "Decoración",  "emoji": "🌿",  "slugs": ["florero", "escultura", "espejo", "planta"]},
 }
 
-# Cache de grupos disponibles (se refresca al inicio)
-_available_groups_cache: Optional[List[str]] = None
+# Cache de grupos disponibles por merchant
+_available_groups_cache: Dict[str, List[str]] = {}
 
 # Cache de merchants slug → id
 _merchant_id_cache: Dict[str, str] = {}
@@ -79,22 +79,22 @@ async def resolve_merchant_id(slug: str) -> Optional[str]:
     return None
 
 
-async def get_available_groups() -> List[str]:
-    """Devuelve los group IDs que tienen al menos una categoría con stock."""
+async def get_available_groups(merchant_slug: Optional[str] = None) -> List[str]:
+    """Devuelve los group IDs que tienen al menos una categoría con stock para el merchant dado."""
     global _available_groups_cache
-    if _available_groups_cache is not None:
-        return _available_groups_cache
+    cache_key = merchant_slug or "__all__"
+    if cache_key in _available_groups_cache:
+        return _available_groups_cache[cache_key]
     try:
-        slugs_with_stock = set(await get_product_categories())
+        slugs_with_stock = set(await get_product_categories(merchant_slug))
         available = []
         for group_id, group in CATEGORY_GROUPS.items():
             if any(slug in slugs_with_stock for slug in group["slugs"]):
                 available.append(group_id)
-        _available_groups_cache = available
+        _available_groups_cache[cache_key] = available
     except Exception:
-        # Fallback: todos los grupos
-        _available_groups_cache = list(CATEGORY_GROUPS.keys())
-    return _available_groups_cache
+        _available_groups_cache[cache_key] = list(CATEGORY_GROUPS.keys())
+    return _available_groups_cache[cache_key]
 
 
 # ── Sesiones en memoria ────────────────────────────────────
@@ -210,9 +210,9 @@ def health():
 
 
 @app.get("/categories")
-async def categories():
-    """Devuelve los grupos de categorías disponibles con stock."""
-    available = await get_available_groups()
+async def categories(merchant_slug: Optional[str] = None):
+    """Devuelve los grupos de categorías disponibles con stock, filtrados por merchant."""
+    available = await get_available_groups(merchant_slug)
     return [
         {"id": gid, **{k: v for k, v in CATEGORY_GROUPS[gid].items() if k != "slugs"}}
         for gid in available
@@ -323,7 +323,7 @@ async def chat(body: ChatMessage):
 
     if step == "intake" or step == "awaiting_clarification":
         intake_result = await run_intake(session_id, user_message)
-        available_groups = await get_available_groups()
+        available_groups = await get_available_groups(body.merchant_slug)
         claude_groups = intake_result.get("category_groups", [])
         keyword_groups = detect_groups_from_text(user_message)
         raw_detected = list(set(claude_groups) | set(keyword_groups))

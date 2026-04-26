@@ -545,13 +545,13 @@ export default function WidgetPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, step]);
 
-  // Fetch available groups for this merchant on mount
+  // Fetch available groups filtradas por merchant
   useEffect(() => {
-    fetch(`${AGENTS_URL}/categories`)
+    fetch(`${AGENTS_URL}/categories?merchant_slug=${merchantSlug}`)
       .then((r) => r.json())
       .then((data) => setAvailableGroups(data))
       .catch(() => {});
-  }, []);
+  }, [merchantSlug]);
 
   function handleImageSelect(file: File) {
     capture("widget_image_uploaded", { merchant_slug: merchantSlug });
@@ -623,7 +623,7 @@ export default function WidgetPage() {
           session_id: data.session_id,
         });
         if (data.context?.available_groups) {
-          const groups = await fetch(`${AGENTS_URL}/categories`).then((r) => r.json());
+          const groups = await fetch(`${AGENTS_URL}/categories?merchant_slug=${merchantSlug}`).then((r) => r.json());
           setAvailableGroups(groups);
         }
         if (data.context?.pre_selected_groups?.length) {
