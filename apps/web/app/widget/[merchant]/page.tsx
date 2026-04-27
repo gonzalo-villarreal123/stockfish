@@ -264,7 +264,7 @@ function ProductCard({
 }) {
   const [current, setCurrent] = useState<Product | null>(item.best);
   const [swapping, setSwapping] = useState<"product" | "color" | null>(null);
-  const [addedToCart, setAddedToCart] = useState(false);
+  const [cartState, setCartState] = useState<"idle" | "adding" | "added">("idle");
 
   // Listas separadas por modo para no interferir entre sí
   // allSeenIds: todos los productos vistos → se usa para excluir en modo "product"
@@ -277,9 +277,23 @@ function ProductCard({
   const [noMoreProducts, setNoMoreProducts] = useState(false);
   const [swapCount, setSwapCount] = useState(0);
 
+  // Escuchar confirmación del carrito desde embed.js
+  useEffect(() => {
+    function onMessage(e: MessageEvent) {
+      if (e.data?.type === "sf-cart-added") {
+        setCartState("added");
+        setTimeout(() => setCartState("idle"), 3000);
+      }
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
   if (!current || item.no_stock) return null;
 
   async function handleAddToCart() {
+    if (cartState === "adding") return;
+    setCartState("adding");
     capture("widget_add_to_cart", {
       session_id: sessionId,
       product_id: current!.id,
@@ -302,8 +316,9 @@ function ProductCard({
       }),
     }).catch(() => {});
     window.parent.postMessage({ type: "sf-add-to-cart", product: current }, "*");
-    setAddedToCart(true);
-    setTimeout(() => setAddedToCart(false), 2000);
+    // Timeout fallback: si en 4s no llega sf-cart-added, mostrar "Agregado" igual
+    setTimeout(() => setCartState(s => s === "adding" ? "added" : s), 4000);
+    setTimeout(() => setCartState(s => s === "added" ? "idle" : s), 7000);
   }
 
   async function handleSwap(mode: "product" | "color") {
@@ -382,8 +397,13 @@ function ProductCard({
         <div className="card-actions">
 
           <div className="card-actions-row">
-            <button onClick={handleAddToCart} className="btn-primary">
-              {addedToCart ? "✓ Agregado" : "🛒 Agregar"}
+            <button
+              onClick={handleAddToCart}
+              className="btn-primary"
+              disabled={cartState === "adding"}
+              style={cartState === "adding" ? { opacity: 0.7 } : {}}
+            >
+              {cartState === "adding" ? "Agregando…" : cartState === "added" ? "✓ En tu carrito" : "🛒 Agregar"}
             </button>
             <a
               href={current.url}
