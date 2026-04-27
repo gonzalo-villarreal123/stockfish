@@ -1,15 +1,17 @@
 """
 Scraper universal para tiendas en plataforma Tienda Nube.
 Usa JSON-LD (schema.org) como fuente principal de datos.
+Categorización: keywords primero, Claude Haiku como fallback si retorna "otro".
 """
 import asyncio
 import json
 import re
 import argparse
+import os
 from typing import Optional
 from bs4 import BeautifulSoup
 from models import ScrapedProduct, ProductDimensions
-from db import get_merchant_by_slug, upsert_product, create_scraping_job, update_scraping_job
+from db import get_merchant_by_slug, upsert_product, create_scraping_job, update_scraping_job, upsert_category
 from datetime import datetime
 
 
@@ -93,6 +95,89 @@ CATEGORY_KEYWORDS = {
     "cuadro":    ["cuadro", "print", "poster", "lámina", "lamina", "litografía", "fotografia", "fotografía", "arte"],
     "escultura": ["escultura", "figura decorativa", "estatua", "objeto decorativo"],
 }
+
+
+# ── Cache de categorías conocidas (se actualiza en runtime) ──
+# Se inicializa con las keys del dict; se enriquece desde Supabase al arrancar.
+_known_category_slugs: set[str] = set(CATEGORY_KEYWORDS.keys()) | {"bazar", "baño"}
+
+# Cache de resultados Claude (nombre_lower → slug) para no rellamar en la misma sesión
+_claude_cache: dict[str, str] = {}
+
+
+async def categorize_with_claude(name: str, description: str) -> str:
+    """
+    Llama a Claude Haiku para categorizar un producto cuando keyword matching falla.
+    Usa SOLO cuando detect_category() devuelve 'otro'.
+    Crea la categoría en Supabase si es nueva.
+    Costo: ~$0.0002 por llamada (Claude Haiku 4.5).
+    """
+    import anthropic
+
+    cache_key = name.lower()[:60]
+    if cache_key in _claude_cache:
+        return _claude_cache[cache_key]
+
+    known = sorted(s for s in _known_category_slugs if s != "otro")
+    desc_short = (description or "")[:200]
+
+    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    try:
+        msg = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=50,
+            messages=[{
+                "role": "user",
+                "content": (
+                    f"Categorizá este producto de una tienda argentina de hogar/deco.\n"
+                    f"Nombre: {name}\n"
+                    f"Descripción: {desc_short}\n\n"
+                    f"Categorías existentes: {', '.join(known)}\n\n"
+                    f"Respondé SOLO con el slug más apropiado de la lista.\n"
+                    f"Si ninguno encaja, respondé: NUEVA:<slug>:<Label en español>:<emoji>\n"
+                    f"Ejemplo: NUEVA:cocina:Cocina y Utensilios:🍳\n"
+                    f"Solo el slug o la línea NUEVA, sin explicación."
+                )
+            }]
+        )
+        text = msg.content[0].text.strip()
+    except Exception as e:
+        print(f"  [claude-cat] Error: {e} — usando 'otro'")
+        return "otro"
+
+    if text.upper().startswith("NUEVA:"):
+        parts = text.split(":")
+        slug  = parts[1].strip().lower().replace(" ", "_") if len(parts) > 1 else "otro"
+        label = parts[2].strip() if len(parts) > 2 else slug.replace("_", " ").title()
+        emoji = parts[3].strip() if len(parts) > 3 else "📦"
+        if slug and slug != "otro":
+            # Persistir la nueva categoría en Supabase
+            try:
+                await upsert_category(slug, label, emoji, group_id=slug, sort_order=50)
+                _known_category_slugs.add(slug)
+                print(f"  [categories] Nueva categoría: {slug} ({label} {emoji})")
+            except Exception as e:
+                print(f"  [categories] No se pudo guardar '{slug}': {e}")
+        result = slug or "otro"
+    else:
+        result = text.lower().replace(" ", "_").strip("\"'")
+        if result not in _known_category_slugs:
+            result = "otro"
+
+    _claude_cache[cache_key] = result
+    return result
+
+
+async def classify_product(name: str, description: str = "") -> str:
+    """
+    Pipeline completo de categorización:
+    1. Keywords (instantáneo, gratis)
+    2. Claude Haiku fallback si keywords devuelven 'otro'
+    """
+    result = detect_category(name, description)
+    if result != "otro":
+        return result
+    return await categorize_with_claude(name, description)
 
 
 def detect_category(name: str, description: str = "") -> str:
@@ -288,7 +373,8 @@ async def scrape_product_page(page, url: str) -> Optional[dict]:
                 pass
 
         # ── 9. Categoría y dimensiones ─────────────────────
-        category = detect_category(name, description)
+        # classify_product: keywords primero, Claude fallback si "otro"
+        category = await classify_product(name, description)
         full_text = f"{name} {description}"
         dimensions = extract_dimensions(full_text)
         if dimensions and weight_kg:

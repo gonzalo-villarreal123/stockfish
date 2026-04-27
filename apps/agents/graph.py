@@ -34,25 +34,31 @@ anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 CATEGORY_CONTEXT = {
     "lampara":   "velador lámpara de mesa lámpara de pie iluminación ambiente decorativa living",
     "mueble":    "mueble sofá sillón mesa silla living comedor dormitorio",
-    "textil":    "textil almohadón alfombra manta cortina decoración suave",
+    "textil":    "textil almohadón alfombra manta cortina cubrecama funda sábana acolchado",
     "cuadro":    "cuadro arte pintura ilustración lámina decoración pared",
-    "florero":   "florero jarrón vaso decorativo centro de mesa",
+    "florero":   "florero jarrón vaso decorativo centro de mesa vela candelabro",
     "escultura": "escultura figura objeto decorativo accesorio",
     "espejo":    "espejo decorativo pared living",
     "planta":    "planta natural artificial maceta verde decoración",
+    "bazar":     "copa vaso jarra vajilla plato cubierto utensilio cocina mesa ensaladera",
+    "baño":      "baño dispenser jabonera porta toalla accesorios set de baño",
 }
 
 # ── Categorías disponibles ──────────────────────────────────
 
 CATEGORY_LABELS = {
     "mueble":    "Muebles",
-    "textil":    "Textiles",
+    "textil":    "Textil Hogar",
     "lampara":   "Iluminación",
-    "cuadro":    "Arte y cuadros",
+    "cuadro":    "Arte",
     "florero":   "Decoración",
-    "escultura": "Esculturas",
+    "escultura": "Decoración",
     "espejo":    "Espejos",
     "planta":    "Plantas",
+    "bazar":     "Bazar & Mesa",
+    "baño":      "Baño",
+    "otro":      "Producto",
+    # Nuevas categorías creadas por Claude se agregan en runtime vía api.py startup
 }
 
 # Peso relativo de cada categoría para distribuir el presupuesto
@@ -65,6 +71,8 @@ BUDGET_WEIGHTS = {
     "escultura": 0.10,
     "espejo":    0.15,
     "planta":    0.05,
+    "bazar":     0.10,
+    "baño":      0.08,
 }
 
 # ── Estado del grafo ───────────────────────────────────────

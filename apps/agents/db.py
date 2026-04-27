@@ -279,6 +279,40 @@ async def save_feedback(feedback: dict):
             print(f"[save_feedback] Error: {r.status_code} {r.text[:200]}")
 
 
+# ── Categories ─────────────────────────────────────────────
+
+async def get_all_categories() -> list[dict]:
+    """Returns all categories ordered by sort_order."""
+    async with httpx.AsyncClient() as client:
+        r = await client.get(
+            rest("categories"), headers=HEADERS,
+            params={"order": "sort_order.asc"}
+        )
+        if r.status_code == 404:
+            return []   # tabla aún no creada
+        r.raise_for_status()
+        return r.json()
+
+
+async def upsert_category(slug: str, label: str, emoji: str = "📦",
+                          group_id: str = "otro", context: str = "",
+                          budget_weight: float = 0.1, sort_order: int = 50) -> dict:
+    """Creates or updates a category entry."""
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            rest("categories"),
+            headers={**HEADERS, "Prefer": "resolution=merge-duplicates,return=representation"},
+            json={
+                "slug": slug, "label": label, "emoji": emoji,
+                "group_id": group_id, "context": context,
+                "budget_weight": budget_weight, "sort_order": sort_order,
+            }
+        )
+        r.raise_for_status()
+        data = r.json()
+        return data[0] if data else {}
+
+
 async def save_search_event(event: dict):
     """Persiste una búsqueda procesada para el dashboard de insights."""
     async with httpx.AsyncClient() as client:

@@ -15,7 +15,7 @@ from typing import Optional, List, Dict
 from dotenv import load_dotenv
 from graph import run_intake, run_combo_search, swap_product, generic_search_by_category, analyze_image, run_interpret_refinement
 from urllib.parse import urlparse
-from db import create_session, upsert_session, get_session, update_session, get_session_by_token, get_product_categories, get_merchant_by_slug, save_search_event, persist_session_state, load_session_state, save_feedback, create_or_get_merchant, get_latest_scraping_job
+from db import create_session, upsert_session, get_session, update_session, get_session_by_token, get_product_categories, get_merchant_by_slug, save_search_event, persist_session_state, load_session_state, save_feedback, create_or_get_merchant, get_latest_scraping_job, get_all_categories
 from tn_router import router as tn_router
 from scraper import ALL_MERCHANTS, _extract_slug_from_url
 
@@ -32,16 +32,64 @@ app.add_middleware(
 
 app.include_router(tn_router)
 
+
+@app.on_event("startup")
+async def load_categories_from_db():
+    """
+    Carga CATEGORY_GROUPS dinámicamente desde la tabla `categories` de Supabase.
+    Si la tabla no existe aún, usa los defaults hardcodeados.
+    También actualiza graph.py CATEGORY_LABELS y CATEGORY_CONTEXT.
+    """
+    global CATEGORY_GROUPS
+    try:
+        cats = await get_all_categories()
+        if not cats:
+            print("[startup] categories: tabla vacía o no existe — usando defaults")
+            return
+
+        # Reconstruir CATEGORY_GROUPS desde la DB
+        groups: Dict[str, dict] = {}
+        for cat in cats:
+            if cat["slug"] == "otro":
+                continue
+            gid = cat.get("group_id") or "otro"
+            if gid not in groups:
+                groups[gid] = {"label": cat["label"], "emoji": cat["emoji"], "slugs": []}
+            groups[gid]["slugs"].append(cat["slug"])
+
+        if groups:
+            CATEGORY_GROUPS.clear()
+            CATEGORY_GROUPS.update(groups)
+            print(f"[startup] {len(groups)} category groups cargados desde Supabase")
+
+        # Actualizar graph.py en caliente
+        import graph
+        for cat in cats:
+            if cat["slug"] == "otro":
+                continue
+            graph.CATEGORY_LABELS[cat["slug"]] = cat["label"]
+            if cat.get("context"):
+                graph.CATEGORY_CONTEXT[cat["slug"]] = cat["context"]
+            if cat.get("budget_weight"):
+                graph.BUDGET_WEIGHTS[cat["slug"]] = float(cat["budget_weight"])
+        print(f"[startup] graph.py actualizado: {len(graph.CATEGORY_LABELS)} labels")
+
+    except Exception as e:
+        print(f"[startup] No se pudo cargar categories desde DB: {e} — usando defaults")
+
 anthropic_client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 # ── Agrupamiento de categorías ─────────────────────────────
 
-CATEGORY_GROUPS = {
-    "muebles":     {"label": "Muebles",     "emoji": "🛋️",  "slugs": ["mueble"]},
-    "textiles":    {"label": "Textiles",    "emoji": "🧶",  "slugs": ["textil"]},
-    "iluminacion": {"label": "Iluminación", "emoji": "💡",  "slugs": ["lampara"]},
-    "arte":        {"label": "Arte",        "emoji": "🖼️",  "slugs": ["cuadro"]},
-    "decoracion":  {"label": "Decoración",  "emoji": "🌿",  "slugs": ["florero", "escultura", "espejo", "planta"]},
+# Fallback hardcodeado — se reemplaza en startup con datos de Supabase
+CATEGORY_GROUPS: Dict[str, dict] = {
+    "muebles":     {"label": "Muebles",       "emoji": "🛋️",  "slugs": ["mueble"]},
+    "textiles":    {"label": "Textil Hogar",  "emoji": "🛏️",  "slugs": ["textil"]},
+    "iluminacion": {"label": "Iluminación",   "emoji": "💡",  "slugs": ["lampara"]},
+    "arte":        {"label": "Arte",          "emoji": "🖼️",  "slugs": ["cuadro"]},
+    "decoracion":  {"label": "Decoración",    "emoji": "🌿",  "slugs": ["florero", "escultura", "espejo", "planta"]},
+    "bazar":       {"label": "Bazar & Mesa",  "emoji": "🍽️",  "slugs": ["bazar"]},
+    "bano":        {"label": "Baño",          "emoji": "🚿",  "slugs": ["baño"]},
 }
 
 # Cache de grupos disponibles por merchant
@@ -107,6 +155,8 @@ GROUP_KEYWORDS = {
     "iluminacion": ["lámpara", "lampara", "iluminación", "iluminacion", "luz", "velador", "aplique", "araña"],
     "arte":        ["cuadro", "arte", "pintura", "ilustración", "ilustracion", "fotografía", "fotografia", "lámina", "lamina", "poster"],
     "decoracion":  ["florero", "jarrón", "jarron", "escultura", "figura", "espejo", "planta", "vela", "decoración", "decoracion", "accesorio"],
+    "bazar":       ["copa", "copas", "vaso", "vasos", "jarra", "vajilla", "plato", "cubierto", "tupper", "ensaladera", "utensilios"],
+    "bano":        ["baño", "bano", "dispenser", "dispensador", "jabonera", "porta toalla"],
 }
 
 def detect_groups_from_text(text: str) -> List[str]:
