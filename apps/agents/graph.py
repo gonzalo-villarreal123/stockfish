@@ -33,7 +33,7 @@ anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 CATEGORY_CONTEXT = {
     "lampara":   "velador lámpara de mesa lámpara de pie iluminación ambiente decorativa living",
-    "mueble":    "mueble sofá sillón mesa silla living comedor dormitorio",
+    "mueble":    "mueble sofá sillón mesa silla living comedor rack estante biblioteca",
     "textil":    "textil almohadón alfombra manta cortina cubrecama funda sábana acolchado",
     "cuadro":    "cuadro arte pintura ilustración lámina decoración pared",
     "florero":   "florero jarrón vaso decorativo centro de mesa vela candelabro",

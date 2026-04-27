@@ -61,6 +61,11 @@ CATEGORY_KEYWORDS = {
         "funda de almohada", "funda de acolchado", "funda nórdica",
         "kit de sabanas", "kit de ropa de cama", "juego de sabanas",
         "kit edredón", "kit edredon", "kit acolchado",
+        # inglés / productos con nombre en inglés
+        "pillow", "cushion", "blanket", "throw",
+        # pie de cama, bata, kit textil
+        "pie de cama", "bata ", "batas", "delantal",
+        "kit moscú", "kit catalina", "kit oslo", "kit duo", "kit acolchado",
     ],
 
     # baño before mueble: "set de baño" no debe caer en mueble
