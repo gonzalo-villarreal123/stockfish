@@ -15,6 +15,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   escultura: "Decoración",
   espejo:    "Decoración",
   planta:    "Decoración",
+  bazar:     "Bazar & Mesa",
+  baño:      "Baño",
   otro:      "Producto",
 };
 
@@ -838,61 +840,57 @@ export default function WidgetPage() {
           border-radius: 14px;
           overflow: hidden;
           display: flex;
-          gap: 12px;
-          padding: 12px;
+          flex-direction: column;
         }
         .card-image-wrap {
           position: relative;
+          width: 100%;
+          height: 180px;
           flex-shrink: 0;
-          width: 80px;
-          height: 80px;
         }
         .card-image {
-          width: 80px;
-          height: 80px;
+          width: 100%;
+          height: 180px;
           object-fit: cover;
-          border-radius: 8px;
+          display: block;
         }
         .card-category-badge {
           position: absolute;
-          bottom: 4px;
-          left: 0;
-          right: 0;
-          text-align: center;
-          font-size: 9px;
-          color: #aaa;
-          background: rgba(0,0,0,0.7);
-          border-radius: 0 0 6px 6px;
-          padding: 2px 0;
+          bottom: 8px;
+          left: 10px;
+          font-size: 10px;
+          color: #fff;
+          background: rgba(0,0,0,0.6);
+          border-radius: 6px;
+          padding: 2px 8px;
+          backdrop-filter: blur(4px);
         }
         .card-body {
           flex: 1;
           display: flex;
           flex-direction: column;
-          justify-content: space-between;
-          min-width: 0;
+          gap: 10px;
+          padding: 14px;
         }
         .card-name {
           font-size: 13px;
           font-weight: 500;
           color: #e0e0e0;
-          line-height: 1.3;
+          line-height: 1.4;
           overflow: hidden;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
         }
         .card-price {
-          font-size: 14px;
-          font-weight: 600;
+          font-size: 16px;
+          font-weight: 700;
           color: #fff;
-          margin-top: 4px;
         }
         .card-actions {
           display: flex;
           flex-direction: column;
           gap: 6px;
-          margin-top: 8px;
         }
         .card-actions-row {
           display: flex;

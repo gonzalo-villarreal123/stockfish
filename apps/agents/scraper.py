@@ -35,31 +35,62 @@ ALL_MERCHANTS = [
 # - lampara before mueble: "lámpara de mesa" must match lampara, not mueble's "mesa".
 CATEGORY_KEYWORDS = {
     "lampara":   ["lámpara", "lampara", "velador", "aplique", "iluminación", "iluminacion"],
-    # textil before mueble to avoid "cubrecama" → "cama" → mueble false positive
+
+    # bazar before textil/mueble: "copas", "vasos", "platos" etc. no deben caer en mueble
+    # aunque la descripción diga "para tu mesa"
+    "bazar":     [
+        "copa ", "copas", "vaso ", "vasos", "jarra", "taza ", "tazas", "mug",
+        "cubierto", "cubiertos", "ensaladera", "tupper", "tuppers",
+        "contenedor de vidrio", "botella de vidrio", "botella de acero",
+        "set de te", "set de café", "set de cocina", "set de desayuno",
+        "fuente", "bol ", "bols", "bowl", "plato ", "platos",
+        "tabla de bambu", "tabla para picar", "tabla de cocina",
+        "set x2", "set x4", "set x6", "set x8",
+    ],
+
+    # textil before mueble: "cubrecama", "funda" etc. no deben caer en mueble por "cama"/"mesa"
     "textil":    [
         "almohadón", "almohadon", "cojín", "cojin", "manta", "tapiz", "alfombra",
-        # textil hogar (Ganga Home y similares)
         "cortina", "cortinas", "cubrecama", "cubrecamas", "cubre cama",
         "mantel", "camino de mesa", "camino de tabla",
-        "relleno", "funda de almohada", "funda de acolchado",
-        "acolchado", "sábana", "sabana", "toalla",
+        "relleno", "acolchado", "sábana", "sabana", "toalla",
+        # "funda" sola es muy común en Ganga Home y similares
+        "funda ", "fundas",
+        "funda de almohada", "funda de acolchado", "funda nórdica",
+        "kit de sabanas", "kit de ropa de cama", "juego de sabanas",
+        "kit edredón", "kit edredon", "kit acolchado",
     ],
+
+    # baño before mueble: "set de baño" no debe caer en mueble
+    "baño":      [
+        "set de baño", "set de bano", "dispensador", "dispenser",
+        "porta rollo", "porta-rollo", "porta toalla", "accesorio de baño",
+        "jabonera", "vaso de baño",
+    ],
+
     "mueble":    [
-        "mesa", "silla", "sillón", "sillon", "sofá", "sofa", "estante", "repisa",
-        "cómoda", "comoda", "biblioteca", "rack", "camastro", "puff", "puf",
-        "recibidor", "respaldo", "cama", "ropero", "placard", "escritorio", "perchero",
+        # Solo sustantivos inequívocamente de mueble — quitado "mesa" para evitar
+        # falsos positivos desde descripciones ("ideal para tu mesa")
+        "silla ", "sillas", "sillón", "sillon", "sofá", "sofa",
+        "estante", "repisa", "cómoda", "comoda", "biblioteca", "rack ",
+        "camastro", "puff", "puf ", "recibidor", "respaldo",
+        "ropero", "placard", "escritorio", "perchero",
+        # "cama" sola sí, pero "cubrecama" ya está en textil antes
+        " cama ", "estructura de cama", "sommier", "canapé",
+        # "mesa" solo en combinaciones específicas de mueble
+        "mesa de comedor", "mesa de living", "mesa ratona", "mesa auxiliar",
+        "mesa de luz", "mesa de noche",
     ],
+
     "espejo":    ["espejo", "mirror"],
     "florero":   [
         "florero", "jarrón", "jarron", "vaso decorativo",
-        "vela", "velita", "candelabro", "portavela", "portaretrato", "marco",
+        "vela ", "velita", "candelabro", "portavela", "portaretrato", "marco",
         "bandeja", "cesto", "canasto", "cesta", "aromatizador", "difusor",
         "matera", "frasco",
     ],
     "planta":    ["planta", "maceta", "suculenta"],
     "cuadro":    ["cuadro", "print", "poster", "lámina", "lamina", "litografía", "fotografia", "fotografía", "arte"],
-    # "pieza" removed — far too generic (appears in "pieza única", "esta pieza es...", etc.)
-    # "figura" narrowed to "figura decorativa" to avoid false positives
     "escultura": ["escultura", "figura decorativa", "estatua", "objeto decorativo"],
 }
 
@@ -159,20 +190,30 @@ async def scrape_product_page(page, url: str) -> Optional[dict]:
         if not name:
             return None
 
-        # ── 3. Precio (precio actual con descuento si hay) ─
+        # ── 3. Precio ──────────────────────────────────────
+        # Orden de prioridad:
+        # 1. Texto visible del elemento de precio (siempre en pesos, formato argentino)
+        # 2. JSON-LD offers.price (formato decimal estándar)
+        # 3. data-product-price (algunos themes TN lo guardan en centavos → NO confiable)
         price = 0.0
         price_el = soup.select_one("#price_display, .js-price-display")
         if price_el:
-            raw = price_el.get("data-product-price")
-            if raw:
-                try:
-                    raw_float = float(raw)
-                    # Si el valor es > 10000 ya está en pesos; si no, está en centavos
-                    price = raw_float if raw_float > 1000 else raw_float / 100
-                except ValueError:
-                    price = parse_price_ars(raw)
+            # Primero intentar el texto visible — es lo que el usuario ve, siempre correcto
+            text_price = parse_price_ars(price_el.get_text(strip=True))
+            if text_price > 0:
+                price = text_price
             else:
-                price = parse_price_ars(price_el.get_text(strip=True))
+                # Fallback: data-product-price (puede estar en centavos según el theme)
+                raw = price_el.get("data-product-price")
+                if raw:
+                    try:
+                        raw_float = float(raw)
+                        # Si el valor parece desproporcionado vs precios reales ARS,
+                        # asumimos que está en centavos y dividimos por 100.
+                        # Umbral: > 50.000.000 centavos = > $500.000 ARS (muy caro para deco)
+                        price = raw_float / 100 if raw_float > 50_000_000 else raw_float
+                    except ValueError:
+                        price = parse_price_ars(raw)
 
         if price == 0 and jsonld_data:
             offers = jsonld_data.get("offers", {})
