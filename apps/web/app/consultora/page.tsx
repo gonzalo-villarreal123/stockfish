@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Script from "next/script";
 
 // ── Colores Foco (inline donde Tailwind no alcanza) ─────────
 const C = {
@@ -84,10 +83,6 @@ export default function ConsultoraPage() {
       `}</style>
 
       {/* Font Awesome */}
-      <Script
-        src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css"
-        strategy="beforeInteractive"
-      />
       <link
         rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css"
