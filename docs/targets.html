@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stockfish — Pipeline de Merchants</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #161616;
+    color: #fff;
+    padding: 48px 24px;
+  }
+  .container { max-width: 960px; margin: 0 auto; }
+
+  .header { margin-bottom: 48px; }
+  .logo { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; }
+
+  .section { margin-bottom: 48px; }
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #606060;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #222;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .count-badge {
+    background: #1a1a1a;
+    border: 1px solid #2e2e2e;
+    color: #888;
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 10px;
+    letter-spacing: 0;
+  }
+
+  /* Criterios */
+  .criteria-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+  }
+  .criteria-card {
+    background: #1f1f1f;
+    border: 1px solid #2e2e2e;
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+  .criteria-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .criteria-val { font-size: 13px; color: #ddd; line-height: 1.6; }
+
+  /* Tabla */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 680px; }
+  thead tr { border-bottom: 1px solid #222; }
+  th {
+    text-align: left;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #555;
+    padding: 8px 12px;
+  }
+  tbody tr {
+    border-bottom: 1px solid #1c1c1c;
+    transition: background 0.1s;
+  }
+  tbody tr:hover { background: #222; }
+  td { padding: 13px 12px; vertical-align: middle; }
+
+  .brand-name { font-size: 13px; font-weight: 600; color: #f0f0f0; }
+  .brand-url { font-size: 11px; color: #666; margin-top: 2px; }
+  td.desc { font-size: 12px; color: #a0a0a0; max-width: 220px; line-height: 1.5; }
+  td.channel { font-size: 12px; color: #a0a0a0; }
+  td.notes { font-size: 12px; color: #888; max-width: 200px; line-height: 1.5; font-style: italic; }
+
+  /* Status pills */
+  .status {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 10px;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+  }
+  .s-prospecto   { background: #1e1e1e; border: 1px solid #333; color: #888; }
+  .s-contactado  { background: #1a2a3a; border: 1px solid #1a4a6a; color: #5aabdc; }
+  .s-demo        { background: #1a2a1a; border: 1px solid #2a4a2a; color: #6ee36e; }
+  .s-negociacion { background: #2a1a0a; border: 1px solid #5a3a0a; color: #e3aa3a; }
+  .s-cliente     { background: #0a2a1a; border: 1px solid #0a5a2a; color: #22c55e; }
+  .s-descartado  { background: #1a1010; border: 1px solid #3a1a1a; color: #663333; }
+
+  /* Priority dots */
+  .prio { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .prio-alta  { background: #22c55e; }
+  .prio-media { background: #e3aa3a; }
+  .prio-baja  { background: #333; }
+
+  /* Source tag */
+  .src {
+    display: inline-block;
+    font-size: 10px;
+    color: #777;
+    background: #1a1a1a;
+    border: 1px solid #2e2e2e;
+    border-radius: 6px;
+    padding: 2px 7px;
+    white-space: nowrap;
+  }
+
+  /* Edit button */
+  .edit-btn {
+    background: none;
+    border: 1px solid #1e1e1e;
+    color: #333;
+    font-size: 10px;
+    padding: 3px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .edit-btn:hover { border-color: #444; color: #aaa; }
+
+  /* Stats bar */
+  .stats-bar {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 36px;
+  }
+  .stat-chip {
+    background: #1f1f1f;
+    border: 1px solid #2e2e2e;
+    border-radius: 10px;
+    padding: 12px 18px;
+    min-width: 100px;
+  }
+  .stat-chip-val { font-size: 26px; font-weight: 800; line-height: 1; }
+  .stat-chip-label { font-size: 11px; color: #888; margin-top: 4px; }
+  .col-verde  { color: #22c55e; }
+  .col-azul   { color: #5aabdc; }
+  .col-amarillo { color: #e3aa3a; }
+  .col-blanco { color: #fff; }
+
+  /* Fuentes donde buscar */
+  .source-list { display: flex; flex-direction: column; gap: 8px; }
+  .source-item {
+    background: #1f1f1f;
+    border: 1px solid #2e2e2e;
+    border-radius: 10px;
+    padding: 14px 18px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .source-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .source-title { font-size: 13px; font-weight: 600; color: #e8e8e8; margin-bottom: 4px; }
+  .source-body { font-size: 12.5px; color: #a0a0a0; line-height: 1.65; }
+
+  @media (max-width: 640px) {
+    .stats-bar { gap: 10px; }
+    .stat-chip-val { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="logo">Stockfish</div>
+    <div class="subtitle">Pipeline de merchants — Home Decor Argentina</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat-chip">
+      <div class="stat-chip-val col-blanco" id="cnt-total">0</div>
+      <div class="stat-chip-label">Prospectos</div>
+    </div>
+    <div class="stat-chip">
+      <div class="stat-chip-val col-azul" id="cnt-contactado">0</div>
+      <div class="stat-chip-label">Contactados</div>
+    </div>
+    <div class="stat-chip">
+      <div class="stat-chip-val col-amarillo" id="cnt-demo">0</div>
+      <div class="stat-chip-label">Demo / Negoc.</div>
+    </div>
+    <div class="stat-chip">
+      <div class="stat-chip-val col-verde" id="cnt-cliente">0</div>
+      <div class="stat-chip-label">Clientes</div>
+    </div>
+  </div>
+
+  <!-- Criterios de targeting -->
+  <div class="section">
+    <div class="section-title">Perfil del merchant ideal</div>
+    <div class="criteria-grid">
+      <div class="criteria-card">
+        <div class="criteria-label">Vertical</div>
+        <div class="criteria-val">Home decor, muebles, textil hogar, iluminación, objetos deco</div>
+      </div>
+      <div class="criteria-card">
+        <div class="criteria-label">Plataforma</div>
+        <div class="criteria-val">Tienda Nube, Shopify, WooCommerce o web propia. No importa — el widget funciona en cualquiera.</div>
+      </div>
+      <div class="criteria-card">
+        <div class="criteria-label">Tamaño catálogo</div>
+        <div class="criteria-val">Mínimo 20 productos. Ideal 50–500. Más productos = más valor del widget.</div>
+      </div>
+      <div class="criteria-card">
+        <div class="criteria-label">Señal de interés</div>
+        <div class="criteria-val">Tienen web activa, postean en IG, venden online. No son solo mayoristas.</div>
+      </div>
+      <div class="criteria-card">
+        <div class="criteria-label">Ticket promedio</div>
+        <div class="criteria-val">Ticket alto justifica la IA. Ideal >$50.000 ARS por producto.</div>
+      </div>
+      <div class="criteria-card">
+        <div class="criteria-label">Zona</div>
+        <div class="criteria-val">Buenos Aires / AMBA primero. Después escalar a interior y resto de LATAM.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pipeline -->
+  <div class="section">
+    <div class="section-title">
+      Pipeline de prospectos
+      <span class="count-badge" id="label-total">0 tiendas</span>
+    </div>
+    <div class="table-wrap">
+      <table id="pipeline-table">
+        <thead>
+          <tr>
+            <th style="width:200px">Marca / Tienda</th>
+            <th style="width:80px">Prioridad</th>
+            <th style="width:200px">Por qué es un buen fit</th>
+            <th style="width:100px">Canal inicial</th>
+            <th style="width:100px">Fuente</th>
+            <th style="width:110px">Estado</th>
+            <th style="width:180px">Notas</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          <!-- ── ALTA PRIORIDAD ── -->
+
+          <tr>
+            <td>
+              <div class="brand-name">Diderot</div>
+              <div class="brand-url">En Supabase</div>
+            </td>
+            <td><span class="prio prio-alta"></span>Alta</td>
+            <td class="desc">Ya indexada, widget sin activar. Conversión inmediata.</td>
+            <td class="channel">WA / Email</td>
+            <td><span class="src">Interno</span></td>
+            <td><span class="status s-prospecto">Prospecto</span></td>
+            <td class="notes">Ya tenemos el catálogo. Solo falta activar y cobrar.</td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="brand-name">Garbo</div>
+              <div class="brand-url">En Supabase</div>
+            </td>
+            <td><span class="prio prio-alta"></span>Alta</td>
+            <td class="desc">Ya indexada. Perfil similar a Alto Rancho.</td>
+            <td class="channel">WA / Email</td>
+            <td><span class="src">Interno</span></td>
+            <td><span class="status s-prospecto">Prospecto</span></td>
+            <td class="notes">Confirmar si el catálogo está actualizado.</td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="brand-name">Nordika</div>
+              <div class="brand-url">En Supabase</div>
+            </td>
+            <td><span class="prio prio-alta"></span>Alta</td>
+            <td class="desc">Ya indexada. Nombre nórdico = fit perfecto con el brief del widget.</td>
+            <td class="channel">WA / Email</td>
+            <td><span class="src">Interno</span></td>
+            <td><span class="status s-prospecto">Prospecto</span></td>
+            <td class="notes">—</td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="brand-name">Cielo Raso</div>
+              <div class="brand-url">cieloraso.com.ar</div>
+            </td>
+            <td><span class="prio prio-alta"></span>Alta</td>
+            <td class="desc">Tienda nube, deco y textil hogar, catálogo amplio, estética cuidada.</td>
+            <td class="channel">IG DM / Email</td>
+            <td><span class="src">IG</span></td>
+            <td><span class="status s-prospecto">Prospecto</span></td>
+            <td class="notes">—</td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="brand-name">Octubre Deco</div>
+              <div class="brand-url">—</div>
+            </td>
+            <td><span class="prio prio-alta"></span>Alta</td>
+            <td class="desc">Deco y ambientación, presencia fuerte en IG. Público exigente.</td>
+            <td class="channel">IG DM</td>
+            <td><span class="src">IG</span></td>
+            <td><span class="status s-prospecto">Prospecto</span></td>
+            <td class="notes">Verificar si tienen tienda online activa.</td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="brand-name">Palermo Home</div>
+              <div class="brand-url">—</div>
+            </td>
+            <td><span class="prio prio-alta"></span>Alta</td>
+            <td class="desc">Muebles y deco premium BA. Ticket alto, catálogo variado.</td>
+            <td class="channel">Email</td>
+            <td><span class="src">Búsqueda</span></td>
+            <td><span class="status s-prospecto">Prospecto</span></td>
+            <td class="notes">—</td>
+          </tr>
+
+          <!-- ── MEDIA PRIORIDAD ── -->
+
+          <tr>
+            <td>
+              <div class="brand-name">Maison Objeto</div>
+              <div class="brand-url">—</div>
+            </td>
+            <td><span class="prio prio-media"></span>Media</td>
+            <td class="desc">Objetos deco y regalo, estética editorial. IG activo.</td>
+            <td class="channel">IG DM</td>
+            <td><span class="src">IG</span></td>
+            <td><span class="status s-prospecto">Prospecto</span></td>
+            <td class="notes">—</td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="brand-name">Casa Cuore</div>
+              <div class="brand-url">—</div>
+            </td>
+            <td><span class="prio prio-media"></span>Media</td>
+            <td class="desc">Deco artesanal y textil. Catálogo medio, clientes fieles.</td>
+            <td class="channel">IG DM / WA</td>
+            <td><span class="src">IG</span></td>
+            <td><span class="status s-prospecto">Prospecto</span></td>
+            <td class="notes">—</td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="brand-name">Roble Muebles</div>
+              <div class="brand-url">—</div>
+            </td>
+            <td><span class="prio prio-media"></span>Media</td>
+            <td class="desc">Muebles línea nórdico/escandinavo. Ticket alto, ideal para combos.</td>
+            <td class="channel">Email</td>
+            <td><span class="src">Búsqueda</span></td>
+            <td><span class="status s-prospecto">Prospecto</span></td>
+            <td class="notes">Confirmar que tienen e-commerce propio.</td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="brand-name">Unika</div>
+              <div class="brand-url">—</div>
+            </td>
+            <td><span class="prio prio-media"></span>Media</td>
+            <td class="desc">Objetos de diseño y deco. Catálogo curado, imagen premium.</td>
+            <td class="channel">IG DM</td>
+            <td><span class="src">IG</span></td>
+            <td><span class="status s-prospecto">Prospecto</span></td>
+            <td class="notes">—</td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="brand-name">Territorio Deco</div>
+              <div class="brand-url">—</div>
+            </td>
+            <td><span class="prio prio-media"></span>Media</td>
+            <td class="desc">Iluminación y deco. Búsquedas por ambiente son el use case ideal.</td>
+            <td class="channel">Email / WA</td>
+            <td><span class="src">Búsqueda</span></td>
+            <td><span class="status s-prospecto">Prospecto</span></td>
+            <td class="notes">—</td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="brand-name">Almacén de Diseño</div>
+              <div class="brand-url">—</div>
+            </td>
+            <td><span class="prio prio-media"></span>Media</td>
+            <td class="desc">Mix de marcas deco/lifestyle. Catálogo multi-marca = más valor del widget.</td>
+            <td class="channel">IG DM</td>
+            <td><span class="src">IG</span></td>
+            <td><span class="status s-prospecto">Prospecto</span></td>
+            <td class="notes">—</td>
+          </tr>
+
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Dónde buscar más targets -->
+  <div class="section">
+    <div class="section-title">Dónde encontrar más prospectos</div>
+    <div class="source-list">
+      <div class="source-item">
+        <div class="source-icon">📷</div>
+        <div>
+          <div class="source-title">Instagram — hashtags y explorar</div>
+          <div class="source-body">#decoracionargentina #homedecorargentina #mueblesba #decoracion #livingroom — filtrá perfiles con bio de tienda, link en bio y +5K seguidores. El punto dulce es 5K–80K: son tiendas reales con volumen suficiente pero sin equipo tech dedicado.</div>
+        </div>
+      </div>
+      <div class="source-item">
+        <div class="source-icon">🛍️</div>
+        <div>
+          <div class="source-title">Tienda Nube — directorio público</div>
+          <div class="source-body">Explorá el directorio de tiendas de Tienda Nube por categoría "Hogar y Deco". Son merchants que ya tienen infraestructura de e-commerce lista — la instalación del widget es trivial para ellos.</div>
+        </div>
+      </div>
+      <div class="source-item">
+        <div class="source-icon">🔍</div>
+        <div>
+          <div class="source-title">Google — búsquedas de nicho</div>
+          <div class="source-body">"tienda decoración online argentina", "muebles nórdicos argentina", "objetos deco buenos aires online". Los resultados orgánicos en las primeras posiciones son merchants con tráfico real pero sin herramientas de conversión avanzadas.</div>
+        </div>
+      </div>
+      <div class="source-item">
+        <div class="source-icon">🏪</div>
+        <div>
+          <div class="source-title">Ferias y eventos deco</div>
+          <div class="source-body">Casa FOA, Diseño en Palermo, Feria Masticar (marcas lifestyle/hogar). Las marcas que exponen tienen catálogo físico y quieren venderlo online — son los mejores prospectos. Muchas tienen Instagram activo pero web sin optimizar.</div>
+        </div>
+      </div>
+      <div class="source-item">
+        <div class="source-icon">🤝</div>
+        <div>
+          <div class="source-title">Red de los merchants actuales</div>
+          <div class="source-body">Alto Rancho, Sol Palou, Lufe, Holyhaus y Pacify conocen el ecosistema. Un pedido de referido ("¿conocés otras tiendas que puedan interesarse?") puede traer leads calificados sin costo de adquisición.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Contar estados y actualizar stats
+  function updateStats() {
+    const rows = document.querySelectorAll('#pipeline-table tbody tr');
+    let total = rows.length;
+    let contactado = 0, demo = 0, cliente = 0;
+    rows.forEach(row => {
+      const s = row.querySelector('.status');
+      if (!s) return;
+      const cls = s.className;
+      if (cls.includes('s-contactado')) contactado++;
+      if (cls.includes('s-demo') || cls.includes('s-negociacion')) demo++;
+      if (cls.includes('s-cliente')) cliente++;
+    });
+    document.getElementById('cnt-total').textContent = total;
+    document.getElementById('cnt-contactado').textContent = contactado;
+    document.getElementById('cnt-demo').textContent = demo;
+    document.getElementById('cnt-cliente').textContent = cliente;
+    document.getElementById('label-total').textContent = total + ' tiendas';
+  }
+  updateStats();
+</script>
+</body>
+</html>

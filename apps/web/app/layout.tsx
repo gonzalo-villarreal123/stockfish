@@ -6,17 +6,17 @@ const APP_URL = "https://stockfish.ar";
 const OG_IMAGE = `${APP_URL}/og.png`;
 
 export const metadata: Metadata = {
-  title: "Stockfish — Decorá con IA",
+  title: "Stockfish — El vendedor IA para tu tienda de deco",
   description:
-    "Describí tu espacio con tus propias palabras. Nuestra IA busca en las mejores tiendas de Argentina y te arma el combo perfecto. Sin filtros, sin perder tiempo.",
+    "Widget de IA embebible para tiendas de home decor. Tus clientes buscan en lenguaje natural, la IA encuentra productos de tu catálogo y arma combos coordinados. Live en menos de una hora.",
   metadataBase: new URL(APP_URL),
   openGraph: {
     type: "website",
     url: APP_URL,
     siteName: "Stockfish",
-    title: "Stockfish — Encontrá tu estilo. Sin usar filtros.",
+    title: "Stockfish — El vendedor IA para tu tienda de deco",
     description:
-      "Describí cómo querés decorar tu espacio y la IA te arma el combo de productos ideales. Gratis. Para Argentina.",
+      "Widget IA para tiendas de home decor en Argentina. Tus clientes buscan en lenguaje natural, la IA encuentra productos de tu catálogo. $100 USD/mes. Sin contrato.",
     images: [
       {
         url: OG_IMAGE,

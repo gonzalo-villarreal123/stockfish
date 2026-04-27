@@ -22,16 +22,28 @@ ALL_MERCHANTS = [
     "boden", "blest", "cosasminimas", "folia", "mink",
     "ruda", "sienna", "petite", "bazarokidoki", "tukee",
     "laforma", "plataforma5", "decolovers", "almacenlobos",
+    # Batch 3
+    "gangahome",
 ]
 
 
 # ── Categorías de arte & decoración ───────────────────────
-# NOTE: order matters — first match wins. Broader/structural categories (mueble)
-# must come before narrower attribute-level ones (espejo) to avoid e.g. a
-# "cómoda con espejo" landing in espejo instead of mueble.
+# NOTE: order matters — first match wins.
+# - textil before mueble: "cubrecama" contains "cama" (mueble keyword) but is textil.
+#   Textil keywords are specific enough (cortina, cubrecama, mantel, etc.) that moving
+#   textil first doesn't cause false positives against mueble products.
+# - lampara before mueble: "lámpara de mesa" must match lampara, not mueble's "mesa".
 CATEGORY_KEYWORDS = {
-    # lampara before mueble: "lámpara de mesa" must match lampara, not mueble's "mesa"
     "lampara":   ["lámpara", "lampara", "velador", "aplique", "iluminación", "iluminacion"],
+    # textil before mueble to avoid "cubrecama" → "cama" → mueble false positive
+    "textil":    [
+        "almohadón", "almohadon", "cojín", "cojin", "manta", "tapiz", "alfombra",
+        # textil hogar (Ganga Home y similares)
+        "cortina", "cortinas", "cubrecama", "cubrecamas", "cubre cama",
+        "mantel", "camino de mesa", "camino de tabla",
+        "relleno", "funda de almohada", "funda de acolchado",
+        "acolchado", "sábana", "sabana", "toalla",
+    ],
     "mueble":    [
         "mesa", "silla", "sillón", "sillon", "sofá", "sofa", "estante", "repisa",
         "cómoda", "comoda", "biblioteca", "rack", "camastro", "puff", "puf",
@@ -44,7 +56,6 @@ CATEGORY_KEYWORDS = {
         "bandeja", "cesto", "canasto", "cesta", "aromatizador", "difusor",
         "matera", "frasco",
     ],
-    "textil":    ["almohadón", "almohadon", "cojín", "cojin", "manta", "tapiz", "alfombra"],
     "planta":    ["planta", "maceta", "suculenta"],
     "cuadro":    ["cuadro", "print", "poster", "lámina", "lamina", "litografía", "fotografia", "fotografía", "arte"],
     # "pieza" removed — far too generic (appears in "pieza única", "esta pieza es...", etc.)
@@ -263,6 +274,51 @@ async def scrape_product_page(page, url: str) -> Optional[dict]:
         return None
 
 
+async def get_product_urls_from_sitemap(base_url: str) -> list[str]:
+    """
+    Obtiene URLs de productos directamente del sitemap XML de Tienda Nube.
+    Mucho más rápido que la paginación con Playwright (una sola request HTTP).
+    Detecta tanto /productos/ como /tienda/ como prefijo.
+    """
+    import httpx as _httpx
+    import xml.etree.ElementTree as ET
+
+    sitemap_url = base_url.rstrip("/") + "/sitemap.xml"
+    try:
+        async with _httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+            r = await client.get(sitemap_url, headers={"User-Agent": "Mozilla/5.0"})
+            r.raise_for_status()
+    except Exception as e:
+        print(f"  [sitemap] No se pudo obtener {sitemap_url}: {e}")
+        return []
+
+    try:
+        root = ET.fromstring(r.text)
+        ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+        all_locs = [el.text.strip() for el in root.findall(".//sm:loc", ns) if el.text]
+    except ET.ParseError as e:
+        print(f"  [sitemap] Error parseando XML: {e}")
+        return []
+
+    # Filtrar URLs de productos individuales (no categorías, no páginas genéricas)
+    # Un producto TN tiene exactamente una barra tras /productos/ o /tienda/
+    # Ej: /productos/nombre-del-producto/  → válido
+    #     /productos/                       → categoría raíz, descartar
+    product_urls = []
+    for loc in all_locs:
+        path = loc.replace(base_url.rstrip("/"), "")
+        for prefix in ("/productos/", "/tienda/"):
+            if path.startswith(prefix):
+                # Debe haber exactamente un segmento después del prefijo
+                suffix = path[len(prefix):].strip("/")
+                if suffix and "/" not in suffix:
+                    product_urls.append(loc.rstrip("/"))
+                break
+
+    print(f"  [sitemap] {len(product_urls)} productos encontrados en sitemap")
+    return product_urls
+
+
 async def _collect_links_from_page(page, base_url: str, list_url: str, path_prefix: str) -> set[str]:
     """Carga una URL de listado y extrae los links de productos con el prefijo dado."""
     await page.goto(list_url, wait_until="domcontentloaded", timeout=15000)
@@ -290,10 +346,19 @@ async def _collect_links_from_page(page, base_url: str, list_url: str, path_pref
 async def get_product_urls(page, base_url: str, limit: Optional[int] = None) -> list[str]:
     """
     Enumera todos los productos de una tienda Tienda Nube.
-    Intenta /productos primero (TN por defecto) y cae a /tienda si no encuentra nada,
-    cubriendo tiendas que personalizan la ruta del catálogo.
+    Intenta el sitemap primero (mucho más rápido); si no hay sitemap útil,
+    cae a paginación con Playwright (/productos o /tienda).
     """
-    # Detectar qué prefijo de catálogo usa la tienda
+    # ── Intento 1: sitemap XML ─────────────────────────────
+    sitemap_urls = await get_product_urls_from_sitemap(base_url)
+    if sitemap_urls:
+        if limit:
+            sitemap_urls = sitemap_urls[:limit]
+        return sitemap_urls
+
+    print("  [sitemap] Sin resultados, usando paginación Playwright...")
+
+    # ── Intento 2: paginación Playwright ───────────────────
     PATH_PREFIXES = ["/productos", "/tienda"]
     active_prefix = None
 

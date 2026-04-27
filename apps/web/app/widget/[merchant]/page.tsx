@@ -8,13 +8,14 @@ const AGENTS_URL = process.env.NEXT_PUBLIC_AGENTS_URL || "http://localhost:8000"
 
 const CATEGORY_LABELS: Record<string, string> = {
   mueble:    "Muebles",
-  textil:    "Textiles",
+  textil:    "Textil Hogar",
   lampara:   "Iluminación",
   cuadro:    "Arte",
   florero:   "Decoración",
   escultura: "Decoración",
   espejo:    "Decoración",
   planta:    "Decoración",
+  otro:      "Producto",
 };
 
 // ── Types ──────────────────────────────────────────────────
