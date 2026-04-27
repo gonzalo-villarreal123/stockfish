@@ -76,12 +76,14 @@ CATEGORY_KEYWORDS = {
     ],
 
     "mueble":    [
-        # Solo sustantivos inequívocamente de mueble — quitado "mesa" para evitar
-        # falsos positivos desde descripciones ("ideal para tu mesa")
+        # Solo sustantivos inequívocamente de mueble — quitado "mesa" genérico
         "silla ", "sillas", "sillón", "sillon", "sofá", "sofa",
         "estante", "repisa", "cómoda", "comoda", "biblioteca", "rack ",
         "camastro", "puff", "puf ", "recibidor", "respaldo",
         "ropero", "placard", "escritorio", "perchero",
+        "banco ", "bancos", "banqueta",            # bench/stool
+        "consola ", "aparador", "vitrina ",        # living/comedor
+        "cajonera", "chaise", "bergere",
         # "cama" sola sí, pero "cubrecama" ya está en textil antes
         " cama ", "estructura de cama", "sommier", "canapé",
         # "mesa" solo en combinaciones específicas de mueble

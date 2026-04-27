@@ -249,22 +249,15 @@ async def freshen_combo_prices(combo: dict, timeout_s: float = 2.0) -> dict:
             if result is None:
                 return cat, item  # fallback: precio Supabase
 
-            # Si el producto desapareció o está sin stock → lo quitamos del combo
-            if not result["in_stock"]:
-                print(f"[freshen] {cat} sin stock en tienda — quitando del combo")
-                return cat, {
-                    "best": None,
-                    "alternative": item.get("alternative"),
-                    "no_stock": True,
-                }
-
-            # Actualizar precio si lo obtuvimos correctamente
+            # Solo actualizar precio — NUNCA sacar del combo por stock real-time.
+            # El stock se maneja con el sync periódico (price_sync.py), más confiable.
+            # El fetch real-time da falsos negativos cuando falta JSON-LD de availability.
             if result["price"] and result["price"] > 0:
                 updated = {**product, "price": result["price"]}
                 return cat, {**item, "best": updated}
 
         except asyncio.TimeoutError:
-            print(f"[freshen] {cat}: timeout — usando precio Supabase")
+            pass
         except Exception as e:
             print(f"[freshen] {cat}: {e}")
 

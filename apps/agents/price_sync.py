@@ -85,6 +85,8 @@ async def fetch_live_price_stock(url: str, timeout: float = 8.0) -> dict | None:
                     price = parse_price_ars(m2.group(1).strip())
 
             # ── Stock: JSON-LD es la fuente más confiable ──
+            # IMPORTANTE: solo marcar sin stock si EXPLÍCITAMENTE dice OutOfStock.
+            # Si no hay JSON-LD o no tiene campo availability → asumir en stock.
             in_stock = True
             for script_match in re.finditer(
                 r'<script type="application/ld\+json">(.*?)</script>', html, re.DOTALL
@@ -95,7 +97,10 @@ async def fetch_live_price_stock(url: str, timeout: float = 8.0) -> dict | None:
                         availability = str(
                             data.get("offers", {}).get("availability", "")
                         )
-                        in_stock = "InStock" in availability
+                        if availability:
+                            # Solo cambiar si hay un valor explícito
+                            in_stock = "InStock" in availability or "instock" in availability.lower()
+                        # Si availability está vacío → mantener in_stock = True
                         break
                 except Exception:
                     continue
