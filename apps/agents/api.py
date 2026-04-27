@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 from db import create_session, upsert_session, get_session, update_session, get_session_by_token, get_product_categories, get_merchant_by_slug, save_search_event, persist_session_state, load_session_state, save_feedback, create_or_get_merchant, get_latest_scraping_job, get_all_categories
 from tn_router import router as tn_router
 from scraper import ALL_MERCHANTS, _extract_slug_from_url
+from price_sync import fetch_live_price_stock, sync_merchant, sync_all_merchants
 
 load_dotenv()
 
@@ -220,6 +221,60 @@ class SwapResponse(BaseModel):
 
 # ── Helpers ────────────────────────────────────────────────
 
+async def freshen_combo_prices(combo: dict, timeout_s: float = 2.0) -> dict:
+    """
+    Fetchea precios y stock en tiempo real para los productos del combo.
+    Corre todas las requests concurrentemente — latencia típica: ~400-800ms.
+    Si un fetch falla o expira, usa el precio de Supabase como fallback.
+
+    Punto 2 del sistema de precios real-time: se llama después del combo search,
+    antes de devolver la respuesta al widget.
+    """
+    import asyncio
+
+    async def freshen_one(cat: str, item: dict) -> tuple[str, dict]:
+        product = item.get("best")
+        if not product or item.get("no_stock"):
+            return cat, item
+
+        url = product.get("url", "")
+        if not url:
+            return cat, item
+
+        try:
+            result = await asyncio.wait_for(
+                fetch_live_price_stock(url),
+                timeout=timeout_s
+            )
+            if result is None:
+                return cat, item  # fallback: precio Supabase
+
+            # Si el producto desapareció o está sin stock → lo quitamos del combo
+            if not result["in_stock"]:
+                print(f"[freshen] {cat} sin stock en tienda — quitando del combo")
+                return cat, {
+                    "best": None,
+                    "alternative": item.get("alternative"),
+                    "no_stock": True,
+                }
+
+            # Actualizar precio si lo obtuvimos correctamente
+            if result["price"] and result["price"] > 0:
+                updated = {**product, "price": result["price"]}
+                return cat, {**item, "best": updated}
+
+        except asyncio.TimeoutError:
+            print(f"[freshen] {cat}: timeout — usando precio Supabase")
+        except Exception as e:
+            print(f"[freshen] {cat}: {e}")
+
+        return cat, item  # fallback
+
+    tasks = [freshen_one(cat, item) for cat, item in combo.items()]
+    results = await asyncio.gather(*tasks)
+    return dict(results)
+
+
 def expand_groups_to_slugs(group_ids: List[str]) -> List[str]:
     slugs = []
     for gid in group_ids:
@@ -256,7 +311,34 @@ def build_combo_reply(combo: dict, style_tags: list) -> str:
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "stockfish-agents", "version": "3.0.0"}
+    return {"status": "ok", "service": "stockfish-agents", "version": "3.1.0"}
+
+
+class SyncPricesRequest(BaseModel):
+    merchant_slug: Optional[str] = None   # None o "all" → sincroniza todos
+
+
+@app.post("/admin/sync-prices")
+async def admin_sync_prices(body: SyncPricesRequest, background_tasks: BackgroundTasks):
+    """
+    Dispara sincronización de precios y stock en background.
+    Llamar periódicamente desde un cron externo (ej. cron-job.org) cada 12-24hs.
+
+    Body:
+      {"merchant_slug": "gangahome"}   → sincroniza ese merchant
+      {"merchant_slug": "all"}          → sincroniza todos los activos
+      {}                                → sincroniza todos los activos
+
+    Responde inmediatamente. El sync corre en background (~2-5 min para 1000+ productos).
+    """
+    slug = (body.merchant_slug or "all").strip()
+
+    if slug == "all" or not slug:
+        background_tasks.add_task(sync_all_merchants)
+        return {"status": "started", "scope": "all merchants"}
+    else:
+        background_tasks.add_task(sync_merchant, slug)
+        return {"status": "started", "scope": slug}
 
 
 @app.get("/categories")
@@ -480,6 +562,14 @@ async def clarify(body: ClarifyRequest):
         )
 
     combo = combo_result.get("combo", {})
+
+    # ── Precios en tiempo real (Punto 2) ───────────────────────
+    # Fetchea precio y stock actual de cada producto del combo concurrentemente.
+    # Timeout de 2s por producto — no bloquea si la tienda es lenta.
+    try:
+        combo = await freshen_combo_prices(combo, timeout_s=2.0)
+    except Exception as e:
+        print(f"[clarify] freshen_combo_prices falló: {e} — usando precios Supabase")
 
     await set_session_state(body.session_id, {
         **session,

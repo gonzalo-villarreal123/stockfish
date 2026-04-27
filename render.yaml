@@ -23,3 +23,15 @@ services:
         sync: false
       - key: AGENTS_BASE_URL
         value: https://stockfish-agents.onrender.com
+
+# ── Price Sync Cron ─────────────────────────────────────────
+# Render cron jobs requieren plan pago. Alternativa gratuita:
+# Configurar en cron-job.org:
+#   URL:    POST https://stockfish-agents.onrender.com/admin/sync-prices
+#   Body:   {"merchant_slug": "all"}
+#   Header: Content-Type: application/json
+#   Schedule: cada 12 horas (0 */12 * * *)
+#
+# Qué hace: actualiza price + in_stock en Supabase sin Playwright.
+# Tiempo estimado: ~3-5 min para 1000+ productos (15 requests concurrentes).
+# ────────────────────────────────────────────────────────────
