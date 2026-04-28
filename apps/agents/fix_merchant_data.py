@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import httpx, os
-from scraper import detect_category
+from scraper import classify_product
 
 SUPABASE_URL = os.getenv("SUPABASE_REST_URL") or os.getenv("SUPABASE_URL") or os.getenv("SUPABASE_PROJECT_URL", "")
 KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
@@ -109,11 +109,11 @@ async def run(merchant_slug: str, fix_prices: bool, fix_categories: bool, dry_ru
                     patch["price"] = corrected
                     price_fixes += 1
 
-        # ── Fix categorías ───────────────────────────────────
+        # ── Fix categorías (con Claude para verificar matches de descripción) ──
         if fix_categories:
             name = p.get("name", "")
             desc = p.get("description", "") or ""
-            new_cat = detect_category(name, desc)
+            new_cat = await classify_product(name, desc)
             if new_cat != p.get("category"):
                 if dry_run:
                     print(f"  CAT     {p['name'][:45]} | {p['category']} -> {new_cat}")

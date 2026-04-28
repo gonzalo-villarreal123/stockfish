@@ -81,7 +81,7 @@ CATEGORY_KEYWORDS = {
         "estante", "repisa", "cómoda", "comoda", "biblioteca", "rack ",
         "camastro", "puff", "puf ", "recibidor", "respaldo",
         "ropero", "placard", "escritorio", "perchero",
-        "banco ", "bancos", "banqueta",            # bench/stool
+        "banco de madera", "banco de metal", "banco estilo", "banqueta",  # bench/stool — no "banco" solo (puede ser nombre de producto)
         "consola ", "aparador", "vitrina ",        # living/comedor
         "cajonera", "chaise", "bergere",
         # "cama" sola sí, pero "cubrecama" ya está en textil antes
