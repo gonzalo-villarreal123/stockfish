@@ -177,13 +177,35 @@ async def categorize_with_claude(name: str, description: str) -> str:
 
 async def classify_product(name: str, description: str = "") -> str:
     """
-    Pipeline completo de categorización:
-    1. Keywords (instantáneo, gratis)
-    2. Claude Haiku fallback si keywords devuelven 'otro'
+    Pipeline de categorización en tres pasos:
+    1. Keyword match en el NOMBRE → alta confianza, return directo
+    2. Keyword match en la DESCRIPCIÓN → baja confianza, verificar con Claude
+       (falsos positivos frecuentes: "ideal para tu cama" categoriza como mueble)
+    3. Sin match → Claude categoriza desde cero
     """
-    result = detect_category(name, description)
-    if result != "otro":
-        return result
+    name_lower = name.lower()
+
+    # Paso 1: match por nombre — definitivo, sin verificación
+    for category, keywords in CATEGORY_KEYWORDS.items():
+        if any(kw in name_lower for kw in keywords):
+            return category
+
+    # Paso 2: match por descripción — verificar con Claude antes de aceptar
+    full = f"{name} {description}".lower()
+    desc_match = None
+    for category, keywords in CATEGORY_KEYWORDS.items():
+        if any(kw in full for kw in keywords):
+            desc_match = category
+            break
+
+    if desc_match:
+        # Claude verifica si el match por descripción tiene sentido
+        claude_result = await categorize_with_claude(name, description)
+        if claude_result != "otro":
+            return claude_result
+        return desc_match  # si Claude devuelve "otro", confiar en el keyword
+
+    # Paso 3: sin ningún match → Claude categoriza completo
     return await categorize_with_claude(name, description)
 
 
