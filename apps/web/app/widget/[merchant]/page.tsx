@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useState, useRef, useEffect, useCallback, Suspense } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { initPostHog, capture } from "../../../lib/posthog";
 
 const AGENTS_URL = process.env.NEXT_PUBLIC_AGENTS_URL || "http://localhost:8000";
@@ -254,6 +254,7 @@ function ProductCard({
   merchantSlug,
   budget,
   onSwapped,
+  isDemo,
 }: {
   category: string;
   item: ComboItem;
@@ -261,6 +262,7 @@ function ProductCard({
   merchantSlug: string;
   budget: number | null;
   onSwapped: (category: string, product: Product) => void;
+  isDemo?: boolean;
 }) {
   const [current, setCurrent] = useState<Product | null>(item.best);
   const [swapping, setSwapping] = useState<"product" | "color" | null>(null);
@@ -397,32 +399,57 @@ function ProductCard({
         <div className="card-actions">
 
           <div className="card-actions-row">
-            <button
-              onClick={handleAddToCart}
-              className="btn-primary"
-              disabled={cartState === "adding"}
-              style={cartState === "adding" ? { opacity: 0.7 } : {}}
-            >
-              {cartState === "adding" ? "Agregando…" : cartState === "added" ? "✓ En tu carrito" : "🛒 Agregar"}
-            </button>
-            <a
-              href={current.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-secondary"
-              onClick={() =>
-                capture("widget_product_viewed", {
-                  session_id: sessionId,
-                  product_id: current.id,
-                  product_name: current.name,
-                  price: current.price,
-                  category,
-                  merchant_slug: merchantSlug,
-                })
-              }
-            >
-              Ver →
-            </a>
+            {isDemo ? (
+              <a
+                href={current.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary"
+                style={{ textAlign: "center" }}
+                onClick={() =>
+                  capture("widget_product_viewed", {
+                    session_id: sessionId,
+                    product_id: current.id,
+                    product_name: current.name,
+                    price: current.price,
+                    category,
+                    merchant_slug: merchantSlug,
+                    demo: true,
+                  })
+                }
+              >
+                Ver producto →
+              </a>
+            ) : (
+              <>
+                <button
+                  onClick={handleAddToCart}
+                  className="btn-primary"
+                  disabled={cartState === "adding"}
+                  style={cartState === "adding" ? { opacity: 0.7 } : {}}
+                >
+                  {cartState === "adding" ? "Agregando…" : cartState === "added" ? "✓ En tu carrito" : "🛒 Agregar"}
+                </button>
+                <a
+                  href={current.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-secondary"
+                  onClick={() =>
+                    capture("widget_product_viewed", {
+                      session_id: sessionId,
+                      product_id: current.id,
+                      product_name: current.name,
+                      price: current.price,
+                      category,
+                      merchant_slug: merchantSlug,
+                    })
+                  }
+                >
+                  Ver →
+                </a>
+              </>
+            )}
           </div>
           <div className="card-actions-row">
             <button
@@ -464,10 +491,12 @@ function ComboSummaryBar({
   combo,
   shareToken,
   merchantSlug,
+  isDemo,
 }: {
   combo: ComboData;
   shareToken: string | null;
   merchantSlug: string;
+  isDemo?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -489,40 +518,63 @@ function ComboSummaryBar({
   }
 
   return (
-    <div style={{
-      borderTop: "1px solid #1f1f1f",
-      padding: "10px 16px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      background: "#0d0d0d",
-      flexShrink: 0,
-    }}>
-      <div style={{ lineHeight: 1.3 }}>
-        <span style={{ fontSize: 11, color: "#555" }}>
-          {items.length} producto{items.length !== 1 ? "s" : ""}
-        </span>
-        <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>
-          {formatPrice(total)}
+    <div style={{ borderTop: "1px solid #1f1f1f", background: "#0d0d0d", flexShrink: 0 }}>
+      <div style={{
+        padding: "10px 16px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}>
+        <div style={{ lineHeight: 1.3 }}>
+          <span style={{ fontSize: 11, color: "#555" }}>
+            {items.length} producto{items.length !== 1 ? "s" : ""}
+          </span>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>
+            {formatPrice(total)}
+          </div>
         </div>
+        {shareToken && !isDemo && (
+          <button
+            onClick={handleShare}
+            style={{
+              background: copied ? "#1a3a1a" : "transparent",
+              border: `1px solid ${copied ? "#2a6a2a" : "#333"}`,
+              color: copied ? "#6ee36e" : "#aaa",
+              fontSize: 12,
+              padding: "6px 14px",
+              borderRadius: 8,
+              cursor: "pointer",
+              transition: "all 0.2s",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {copied ? "¡Link copiado!" : "Compartir ↗"}
+          </button>
+        )}
       </div>
-      {shareToken && (
-        <button
-          onClick={handleShare}
-          style={{
-            background: copied ? "#1a3a1a" : "transparent",
-            border: `1px solid ${copied ? "#2a6a2a" : "#333"}`,
-            color: copied ? "#6ee36e" : "#aaa",
-            fontSize: 12,
-            padding: "6px 14px",
-            borderRadius: 8,
-            cursor: "pointer",
-            transition: "all 0.2s",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {copied ? "¡Link copiado!" : "Compartir ↗"}
-        </button>
+      {isDemo && (
+        <div style={{ padding: "0 16px 12px" }}>
+          <a
+            href="https://stockfish.ar/vender"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => capture("demo_cta_clicked", { merchant_slug: merchantSlug })}
+            style={{
+              display: "block",
+              textAlign: "center",
+              background: "#fff",
+              color: "#000",
+              fontSize: 13,
+              fontWeight: 700,
+              padding: "9px 16px",
+              borderRadius: 10,
+              textDecoration: "none",
+              letterSpacing: "-0.01em",
+            }}
+          >
+            Quiero esto para mi tienda →
+          </a>
+        </div>
       )}
     </div>
   );
@@ -530,9 +582,12 @@ function ComboSummaryBar({
 
 // ── Main Widget ────────────────────────────────────────────
 
-export default function WidgetPage() {
+function WidgetPageInner() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const merchantSlug = params.merchant as string;
+  const isDemo = merchantSlug === "demo" || searchParams.get("demo") === "true";
+  const demoName = searchParams.get("name") || null;
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -1121,11 +1176,34 @@ export default function WidgetPage() {
       `}</style>
 
       <div className="widget">
+        {/* Demo banner */}
+        {isDemo && (
+          <div style={{
+            background: "#1a1500",
+            borderBottom: "1px solid #3a2e00",
+            padding: "6px 14px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+            flexShrink: 0,
+          }}>
+            <span style={{ fontSize: 11, color: "#c8a800", fontWeight: 600, letterSpacing: "0.04em" }}>
+              MODO DEMO
+            </span>
+            <span style={{ fontSize: 11, color: "#6a5800" }}>
+              Así se ve en tu tienda
+            </span>
+          </div>
+        )}
+
         {/* Header */}
         <div className="widget-header">
           <div>
             <div className="widget-logo">Stockfish</div>
-            <div className="widget-merchant">{merchantSlug}</div>
+            <div className="widget-merchant">
+              {isDemo ? (demoName || "tu tienda") : merchantSlug}
+            </div>
           </div>
         </div>
 
@@ -1168,6 +1246,7 @@ export default function WidgetPage() {
                         merchantSlug={merchantSlug}
                         budget={budget}
                         onSwapped={handleSwapped}
+                        isDemo={isDemo}
                       />
                       )
                     )}
@@ -1257,6 +1336,7 @@ export default function WidgetPage() {
             combo={combo}
             shareToken={shareToken}
             merchantSlug={merchantSlug}
+            isDemo={isDemo}
           />
         )}
 
@@ -1307,5 +1387,13 @@ export default function WidgetPage() {
         </div>
       </div>
     </>
+  );
+}
+
+export default function WidgetPage() {
+  return (
+    <Suspense fallback={null}>
+      <WidgetPageInner />
+    </Suspense>
   );
 }
