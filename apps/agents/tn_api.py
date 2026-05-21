@@ -65,6 +65,52 @@ async def exchange_code(code: str) -> dict:
         return r.json()
 
 
+# ── Store info ─────────────────────────────────────────────
+
+async def get_store_info(store_id: str, access_token: str) -> dict:
+    """
+    Fetches store metadata from the TN API.
+    Returns dict with: id, name (str), original_domain, main_domain.
+    Used during OAuth callback to auto-create merchants.
+    """
+    headers = _tn_headers(access_token)
+    async with httpx.AsyncClient(timeout=15) as client:
+        r = await client.get(f"{TN_API_BASE}/{store_id}", headers=headers)
+        r.raise_for_status()
+        return r.json()
+
+
+def slug_from_store(store: dict) -> str:
+    """
+    Derives a Stockfish slug from TN store data.
+    Uses the subdomain of original_domain (e.g. 'gangahome' from 'gangahome.mitiendanube.com').
+    Falls back to store id if unavailable.
+    """
+    domain = store.get("original_domain", "")
+    if domain:
+        return domain.split(".")[0].lower()
+    return str(store.get("id", ""))
+
+
+def name_from_store(store: dict) -> str:
+    """Extracts a plain string store name from TN's multilingual name field."""
+    name = store.get("name", "")
+    if isinstance(name, dict):
+        return name.get("es") or name.get("pt") or next(iter(name.values()), "") or ""
+    return str(name) if name else ""
+
+
+def base_url_from_store(store: dict) -> str:
+    """Returns the store's public URL, preferring custom domain over mitiendanube.com."""
+    main = store.get("main_domain", "")
+    if main:
+        return f"https://{main}"
+    original = store.get("original_domain", "")
+    if original:
+        return f"https://{original}"
+    return ""
+
+
 # ── Product fetching ────────────────────────────────────────
 
 def _tn_headers(access_token: str) -> dict:

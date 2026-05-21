@@ -21,9 +21,13 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import RedirectResponse
 from typing import Optional
 
-from tn_api import build_install_url, exchange_code, get_all_products, normalize_product
+from tn_api import (
+    build_install_url, exchange_code, get_all_products, normalize_product,
+    get_store_info, slug_from_store, name_from_store, base_url_from_store,
+)
 from db import (
     get_merchant_by_slug,
+    create_or_get_merchant,
     save_tn_credentials,
     get_tn_credentials,
     upsert_product,
@@ -58,22 +62,17 @@ async def install(merchant: str):
 @router.get("/callback")
 async def callback(
     code: str,
-    state: Optional[str] = None,   # merchant slug we passed as state
+    state: Optional[str] = None,
     background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     """
     TN redirects here after the merchant approves the app.
-    We exchange the code for a token and kick off the first product sync.
+
+    Works for both manual installs (state = known slug) and App Store installs
+    (state absent or unknown). In either case we auto-create the merchant if
+    it doesn't exist yet, using store metadata fetched from the TN API.
     """
-    merchant_slug = state
-    if not merchant_slug:
-        raise HTTPException(status_code=400, detail="OAuth state (merchant slug) faltante")
-
-    m = await get_merchant_by_slug(merchant_slug)
-    if not m:
-        raise HTTPException(status_code=404, detail=f"Merchant '{merchant_slug}' no encontrado")
-
-    # Exchange authorization code → access token
+    # 1. Exchange authorization code → access token
     try:
         token_data = await exchange_code(code)
     except Exception as e:
@@ -86,7 +85,27 @@ async def callback(
     if not access_token or not store_id:
         raise HTTPException(status_code=502, detail="Respuesta de token TN incompleta")
 
-    # Persist credentials
+    # 2. Fetch store metadata from TN to get name, domain, slug
+    try:
+        store_info = await get_store_info(store_id, access_token)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Error al obtener info de tienda TN: {e}")
+
+    merchant_slug = state or slug_from_store(store_info)
+    merchant_name = name_from_store(store_info)
+    merchant_url  = base_url_from_store(store_info)
+
+    # 3. Create merchant if it doesn't exist (idempotent)
+    try:
+        m = await create_or_get_merchant(
+            slug=merchant_slug,
+            name=merchant_name or merchant_slug,
+            base_url=merchant_url,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al crear merchant: {e}")
+
+    # 4. Persist credentials
     await save_tn_credentials(
         merchant_id=m["id"],
         store_id=store_id,
@@ -94,7 +113,7 @@ async def callback(
         scope=scope,
     )
 
-    # Kick off first sync in the background so we can respond immediately
+    # 5. Kick off first sync in background so we can respond immediately
     background_tasks.add_task(_run_sync, merchant_slug=merchant_slug)
 
     return {
@@ -102,6 +121,7 @@ async def callback(
         "merchant": merchant_slug,
         "tn_store_id": store_id,
         "scope": scope,
+        "created": not bool(state),  # True = merchant auto-created via App Store
         "message": "Credenciales guardadas. Sincronización de productos iniciada en segundo plano.",
     }
 

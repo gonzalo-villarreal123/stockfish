@@ -107,17 +107,35 @@ async def _embed_batch(products: list[dict]):
     print(f"✅ Embeddings generados: {total}/{len(products)} productos")
 
 
-async def generate_embeddings():
-    print("🔍 Buscando productos sin embeddings...")
-    products = await get_products_without_embeddings()
+async def generate_embeddings(merchant_slug: str | None = None):
+    import sys, argparse
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+    merchant_id = None
+    if merchant_slug:
+        from db import get_merchant_by_slug
+        merchant = await get_merchant_by_slug(merchant_slug)
+        if not merchant:
+            print(f"[!] Merchant '{merchant_slug}' no encontrado en Supabase.")
+            return
+        merchant_id = merchant["id"]
+        print(f"[embeddings] Merchant: {merchant['name']} (id={merchant_id})")
+
+    print("[embeddings] Buscando productos sin embeddings...")
+    products = await get_products_without_embeddings(merchant_id=merchant_id)
 
     if not products:
-        print("✅ Todos los productos ya tienen embeddings.")
+        print("[embeddings] Todos los productos ya tienen embeddings.")
         return
 
-    print(f"📦 {len(products)} productos para procesar")
+    print(f"[embeddings] {len(products)} productos para procesar")
     await _embed_batch(products)
 
 
 if __name__ == "__main__":
-    asyncio.run(generate_embeddings())
+    import argparse, sys
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--merchant", default=None, help="Slug del merchant")
+    args = parser.parse_args()
+    asyncio.run(generate_embeddings(merchant_slug=args.merchant))
