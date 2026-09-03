@@ -1,456 +1,336 @@
-import Link from "next/link";
+"use client";
 
-// ── Data ──────────────────────────────────────────────────
+import { useState } from "react";
 
-const STATS = [
-  { val: "38,5%", label: "de los merchants ya ve las compras conducidas por agentes de IA como factor determinante en 2026" },
-  { val: "50,4%", label: "cree que la atención al cliente con IA será la tendencia de mayor impacto este año" },
-  { val: "80%",   label: "de los consumidores ya usa respuestas de IA para decidir su compra" },
-];
+// ── Colores Foco (inline donde Tailwind no alcanza) ─────────
+const C = {
+  violet:     "#6366F1",
+  violetDark: "#4F46E5",
+  dark:       "#111827",
+  gray:       "#6B7280",
+  lightGray:  "#F9FAFB",
+};
 
-const STEPS = [
-  {
-    n: "01",
-    title: "Indexamos tu catálogo",
-    body: "Le pasamos la URL de tu tienda. El sistema importa todos tus productos automáticamente — fotos, precios, descripciones.",
-  },
-  {
-    n: "02",
-    title: "Pegás un snippet",
-    body: "Una línea de código en el HTML de tu tienda. El widget aparece flotando en la esquina. Lo hacemos nosotros.",
-  },
-  {
-    n: "03",
-    title: "Tus clientes buscan",
-    body: "Describen lo que quieren. La IA muestra productos de tu catálogo coordinados por estilo y presupuesto.",
-  },
-];
+// ── Formspree: creá un form en formspree.io y pegá el ID acá
+const FORMSPREE_ID = "xqewoppz"; // ← reemplazar con form ID de Foco
 
-const FEATURES = [
-  {
-    icon: "🤖",
-    title: "Asistente IA en tu tienda",
-    body: "Entiende estilo, presupuesto y ambiente. Arma combos coordinados con productos reales de tu catálogo.",
-  },
-  {
-    icon: "📊",
-    title: "Dashboard de qué buscan",
-    body: "Ves en tiempo real qué buscan tus clientes, qué categorías piden más y qué no encuentran.",
-  },
-  {
-    icon: "🎯",
-    title: "Gaps de catálogo",
-    body: '"Tus clientes buscan veladores estilo hongo y no tenés ninguno." Datos para comprar mejor.',
-  },
-  {
-    icon: "🔗",
-    title: "Combos compartibles",
-    body: "El cliente arma su combo y lo comparte por WhatsApp. Marketing gratuito para tu marca.",
-  },
-];
+export default function ConsultoraPage() {
+  const [modalOpen, setModalOpen]       = useState(false);
+  const [submitted, setSubmitted]       = useState(false);
+  const [sending, setSending]           = useState(false);
 
-const PILOTS = [
-  { name: "Alto Rancho", products: 322, active: true },
-  { name: "Sol Palou",   products: 83,  active: false },
-  { name: "Lufe",        products: 53,  active: false },
-  { name: "Holyhaus",    products: 45,  active: false },
-  { name: "Pacify",      products: 19,  active: false },
-];
+  function openModal()  { setSubmitted(false); setModalOpen(true); }
+  function closeModal() { setModalOpen(false); }
 
-const PRICE_ITEMS = [
-  "Widget IA embebido en tu tienda",
-  "Catálogo indexado automáticamente",
-  "Dashboard de insights en tiempo real",
-  "Export de datos (CSV)",
-  "Combos compartibles por WhatsApp",
-  "Soporte directo",
-];
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSending(true);
+    try {
+      const res = await fetch(`https://formspree.io/f/${FORMSPREE_ID}`, {
+        method: "POST",
+        body: new FormData(e.currentTarget),
+        headers: { Accept: "application/json" },
+      });
+      if (res.ok) setSubmitted(true);
+    } finally {
+      setSending(false);
+    }
+  }
 
-// ── Page ──────────────────────────────────────────────────
-
-export default function Home() {
   return (
-    <div className="min-h-screen text-gray-200 font-sans selection:bg-gray-700" style={{ background: "#161616" }}>
+    <>
+      {/* Google Fonts */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@700;900&family=Poppins:wght@400;600&display=swap');
+        .foco-body { font-family: 'Poppins', sans-serif; color: ${C.dark}; }
+        .foco-display { font-family: 'Inter', sans-serif; }
+        .gradient-text {
+          background: linear-gradient(90deg, ${C.violet}, #818CF8);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+        .hero-waves {
+          position: absolute; bottom: 0; left: 0;
+          width: 100%; height: 100%;
+          z-index: 0; opacity: 0.1; pointer-events: none;
+        }
+        .foco-btn {
+          background: ${C.violet}; color: #fff;
+          font-weight: 700; padding: 12px 32px;
+          border-radius: 8px; border: none; cursor: pointer;
+          font-family: 'Poppins', sans-serif;
+          transition: background 0.2s;
+          font-size: 1rem;
+        }
+        .foco-btn:hover { background: ${C.violetDark}; }
+        .foco-btn-sm {
+          background: ${C.violet}; color: #fff;
+          font-weight: 600; padding: 8px 20px;
+          border-radius: 8px; border: none; cursor: pointer;
+          font-family: 'Poppins', sans-serif;
+          transition: background 0.2s;
+          font-size: 0.875rem;
+        }
+        .foco-btn-sm:hover { background: ${C.violetDark}; }
+        .foco-input {
+          width: 100%; padding: 10px 16px;
+          border: 1px solid #D1D5DB; border-radius: 8px;
+          font-family: 'Poppins', sans-serif; font-size: 14px;
+          outline: none; transition: box-shadow 0.15s;
+        }
+        .foco-input:focus { box-shadow: 0 0 0 2px ${C.violet}44; border-color: ${C.violet}; }
+      `}</style>
 
-      {/* Nav */}
-      <header className="flex items-center justify-between px-6 py-5 max-w-5xl mx-auto border-b border-white/[0.07]">
-        <div className="text-xl font-bold text-white tracking-tight">
-          Stockfish
-          <span className="text-gray-500 font-normal text-sm ml-2">para tiendas de deco</span>
-        </div>
-        <nav className="flex items-center gap-4 text-sm">
-          <Link href="/widget/altorancho" target="_blank" className="text-gray-500 hover:text-white transition-colors hidden sm:block">
-            Ver demo
-          </Link>
-          <Link
-            href="/alta"
-            className="bg-white text-black px-4 py-2 rounded-full font-semibold hover:bg-gray-100 transition-colors text-sm"
-          >
-            Empezar →
-          </Link>
-        </nav>
-      </header>
+      {/* Font Awesome */}
+      <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css"
+      />
 
-      <main className="max-w-5xl mx-auto px-6">
+      <div className="foco-body bg-white">
+
+        {/* ── Header ── */}
+        <header className="bg-white shadow-sm sticky top-0 z-40">
+          <div className="container mx-auto px-6 py-3 flex justify-between items-center" style={{ maxWidth: 1200 }}>
+            <a href="/">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="https://i.ibb.co/h1hBKXfC/foco.png" alt="Foco" className="h-8" />
+            </a>
+            <nav className="hidden md:flex gap-8">
+              {["#soluciones", "#metodologia", "#contacto"].map((href) => (
+                <a key={href} href={href} style={{ color: C.gray, textDecoration: "none", fontSize: 15 }}
+                   className="hover:text-indigo-500 transition">{href.replace("#", "").charAt(0).toUpperCase() + href.slice(2)}</a>
+              ))}
+            </nav>
+            <button className="foco-btn-sm" onClick={openModal}>Agendar Diagnóstico</button>
+          </div>
+        </header>
 
         {/* ── Hero ── */}
-        <section className="pt-24 pb-20 flex flex-col items-center text-center">
-          <div className="inline-flex items-center gap-2 border border-white/10 text-gray-400 px-4 py-1.5 rounded-full text-xs font-medium mb-8 tracking-wide uppercase" style={{ background: "#1f1f1f" }}>
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            Widget IA para tiendas de decoración
-          </div>
-
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-white tracking-tight leading-tight mb-6">
-            El comercio agentivo<br />
-            llegó.<br />
-            <span style={{ color: "#a0a0a0" }}>¿Tu tienda está lista?</span>
-          </h1>
-
-          <p className="text-lg md:text-xl max-w-2xl mb-10 leading-relaxed" style={{ color: "#a8a8a8" }}>
-            Tus clientes ya usan IA para decidir qué comprar.
-            Stockfish pone esa IA <strong className="text-gray-200">adentro de tu tienda</strong> —
-            busca en tu catálogo, arma combos coordinados y conecta directo al carrito.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/alta"
-              className="bg-white text-black px-10 py-4 rounded-full text-lg font-semibold hover:bg-gray-100 transition-all shadow-lg"
-            >
-              Empezar ahora →
-            </Link>
-            <Link
-              href="/widget/altorancho"
-              target="_blank"
-              className="border text-gray-300 px-8 py-4 rounded-full text-lg font-medium hover:text-white transition-all"
-              style={{ borderColor: "#2e2e2e" }}
-            >
-              Ver demo en vivo
-            </Link>
-          </div>
-          <p className="text-sm mt-4" style={{ color: "#555" }}>Live en menos de una hora. Sin contrato.</p>
-        </section>
-
-        {/* ── Contexto de mercado ── */}
-        <section className="pb-24">
-          <div className="rounded-3xl border p-8 md:p-12" style={{ background: "#1c1c1c", borderColor: "#2a2a2a" }}>
-            <p className="text-xs uppercase tracking-widest text-center mb-2" style={{ color: "#606060" }}>El momento</p>
-            <h2 className="text-2xl md:text-3xl font-bold text-white text-center mb-3 tracking-tight">
-              El ecommerce está cambiando.<br />
-              <span style={{ color: "#7c74ff" }}>Más rápido de lo que parece.</span>
+        <main style={{ background: "#fff", position: "relative", overflow: "hidden" }}>
+          <svg className="hero-waves" viewBox="0 0 1440 320" preserveAspectRatio="xMidYMid slice">
+            <defs>
+              <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor={C.violet} />
+                <stop offset="100%" stopColor="#818CF8" />
+              </linearGradient>
+            </defs>
+            <path fill="url(#waveGrad)" fillOpacity="0.6" d="M0,160L48,160C96,160,192,160,288,149.3C384,139,480,117,576,128C672,139,768,181,864,181.3C960,181,1056,139,1152,122.7C1248,107,1344,117,1392,122.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z" />
+            <path fill="url(#waveGrad)" fillOpacity="0.3" d="M0,192L48,186.7C96,181,192,171,288,176C384,181,480,203,576,213.3C672,224,768,224,864,208C960,192,1056,160,1152,138.7C1248,117,1344,107,1392,101.3L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z" />
+          </svg>
+          <div style={{ position: "relative", zIndex: 1, maxWidth: 1200 }}
+               className="container mx-auto px-6 pt-24 pb-16 text-center">
+            <h2 className="foco-display font-black mb-4" style={{ fontSize: "clamp(2.5rem, 6vw, 4.5rem)", lineHeight: 1.1 }}>
+              Escala tu Operación,{" "}
+              <br className="hidden md:block" />
+              <span className="gradient-text">no tus Costos.</span>
             </h2>
+            <p className="mx-auto mb-8" style={{ fontSize: "1.125rem", color: C.gray, maxWidth: 700 }}>
+              Somos una consultora de negocios que diseña tu estrategia y la ejecuta con equipos de IA
+              autónomos integrados en el corazón de tu operación. No solo te decimos qué hacer: lo hacemos.
+            </p>
+            <button className="foco-btn" style={{ fontSize: "1.125rem" }} onClick={openModal}>
+              Solicitar Diagnóstico Gratuito
+            </button>
+          </div>
+        </main>
 
-            <blockquote className="my-8 border-l-4 pl-6 py-2 italic text-lg leading-relaxed max-w-3xl mx-auto" style={{ borderColor: "#7c74ff", color: "#ddd" }}>
-              &ldquo;En este escenario de comercio agentivo, los consumidores delegan cada vez más decisiones
-              en asistentes inteligentes que actúan como intermediarios digitales, disponibles 24/7.&rdquo;
-              <cite className="block mt-3 text-sm not-italic" style={{ color: "#666" }}>
-                — NubeCommerce 2026, Tienda Nube Argentina
-              </cite>
-            </blockquote>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
-              {STATS.map((s) => (
-                <div key={s.val} className="rounded-2xl p-6 border" style={{ background: "#222", borderColor: "#2e2e2e" }}>
-                  <div className="text-4xl font-black mb-2" style={{ color: "#7c74ff" }}>{s.val}</div>
-                  <p className="text-sm leading-relaxed" style={{ color: "#999" }}>{s.label}</p>
+        {/* ── Problema ── */}
+        <section id="problema" style={{ background: C.lightGray }}>
+          <div className="container mx-auto px-6 py-20" style={{ maxWidth: 1200 }}>
+            <div className="text-center mb-12">
+              <h3 className="foco-display font-bold" style={{ fontSize: "clamp(1.75rem, 3vw, 2.25rem)" }}>
+                ¿Tu equipo es talentoso, pero está atrapado en la operación diaria?
+              </h3>
+            </div>
+            <div className="grid md:grid-cols-3 gap-8 text-center">
+              {[
+                { icon: "fa-funnel-dollar", title: "Demanda Impredecible",  body: "Ciclos de venta largos y un flujo de clientes que sube y baja sin control, dificultando la planificación y el crecimiento." },
+                { icon: "fa-cogs",          title: "Procesos Manuales",     body: "Tareas repetitivas que consumen el tiempo de tu mejor talento, generan errores costosos y frenan la agilidad de tu empresa." },
+                { icon: "fa-chart-pie",     title: "Decisiones a Ciegas",   body: "Datos valiosos atrapados en silos, impidiendo una visión estratégica clara y forzando decisiones basadas en la intuición." },
+              ].map((c) => (
+                <div key={c.title} className="bg-white p-8 rounded-xl shadow-md">
+                  <i className={`fas ${c.icon} text-4xl mb-4`} style={{ color: C.violet }} />
+                  <h4 className="font-bold text-xl mb-2">{c.title}</h4>
+                  <p style={{ color: C.gray }}>{c.body}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ── Problema ── */}
-        <section className="pb-24">
-          <p className="text-xs uppercase tracking-widest text-center mb-4" style={{ color: "#606060" }}>El problema</p>
-          <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-4 tracking-tight">
-            Tus clientes llegan.<br />
-            <span style={{ color: "#a0a0a0" }}>Pero no encuentran lo que buscan.</span>
-          </h2>
-          <p className="text-center max-w-2xl mx-auto mb-12 text-lg leading-relaxed" style={{ color: "#a8a8a8" }}>
-            Los filtros de categoría no entienden &ldquo;quiero un living nórdico cálido para un depto chico&rdquo;.
-            El cliente se frustra y se va. Vos perdés la venta aunque el producto estaba en tu catálogo.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              { n: "01", title: "Cliente llega a tu tienda",  body: "Sabe lo que quiere pero no sabe cómo buscarlo con filtros." },
-              { n: "02", title: "Navega sin encontrar",       body: "Los filtros de categoría no entienden lenguaje natural ni estilo." },
-              { n: "03", title: "Se va sin comprar",          body: "La venta se pierde. El producto estaba en tu catálogo." },
-            ].map((s) => (
-              <div key={s.n} className="p-6 rounded-2xl border" style={{ background: "#1f1f1f", borderColor: "#2e2e2e" }}>
-                <div className="text-3xl font-black mb-4" style={{ color: "#2a2a2a" }}>{s.n}</div>
-                <h3 className="text-base font-semibold text-white mb-2">{s.title}</h3>
-                <p className="text-sm leading-relaxed" style={{ color: "#a0a0a0" }}>{s.body}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── Cómo funciona ── */}
-        <section className="pb-24">
-          <p className="text-xs uppercase tracking-widest text-center mb-4" style={{ color: "#606060" }}>La solución</p>
-          <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-3 tracking-tight">
-            Stockfish.<br />
-            <span style={{ color: "#7c74ff" }}>El vendedor IA de tu tienda.</span>
-          </h2>
-          <p className="text-center max-w-xl mx-auto mb-12 text-lg leading-relaxed" style={{ color: "#a8a8a8" }}>
-            Live en menos de una hora.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {STEPS.map((s) => (
-              <div key={s.n} className="p-6 rounded-2xl border" style={{ background: "#1f1f1f", borderColor: "#2e2e2e" }}>
-                <div className="text-4xl font-black mb-4" style={{ color: "#2a2a2a" }}>{s.n}</div>
-                <h3 className="text-lg font-semibold text-white mb-2">{s.title}</h3>
-                <p className="text-sm leading-relaxed" style={{ color: "#a0a0a0" }}>{s.body}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── Demo visual del widget ── */}
-        <section className="pb-24">
-          <div className="rounded-3xl border overflow-hidden" style={{ background: "#1c1c1c", borderColor: "#2a2a2a" }}>
-            <div className="px-8 pt-10 pb-6 text-center">
-              <p className="text-xs uppercase tracking-widest mb-3" style={{ color: "#606060" }}>Lo que ven tus clientes</p>
-              <h2 className="text-2xl font-bold text-white mb-2">Un asistente que entiende lo que buscan</h2>
-              <p className="text-sm max-w-xl mx-auto" style={{ color: "#a8a8a8" }}>
-                No más filtros que nadie usa. Tus clientes escriben lo que quieren y aparecen los productos de <em>tu</em> tienda.
-              </p>
+        {/* ── Metodología ── */}
+        <section id="metodologia">
+          <div className="container mx-auto px-6 py-20" style={{ maxWidth: 1200 }}>
+            <div className="text-center mb-12">
+              <h3 className="foco-display font-bold" style={{ fontSize: "clamp(1.75rem, 3vw, 2.25rem)" }}>
+                Nuestro Método: Consultoría de Negocios que se Ejecuta Sola
+              </h3>
             </div>
-
-            {/* Chat mockup */}
-            <div className="max-w-sm mx-auto mb-8 px-4">
-              <div className="rounded-2xl border overflow-hidden" style={{ background: "#141414", borderColor: "#2a2a2a" }}>
-                <div className="px-4 py-3 border-b flex items-center gap-2" style={{ borderColor: "#2a2a2a" }}>
-                  <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-                  <span className="text-xs font-medium" style={{ color: "#666" }}>Asistente de tu tienda</span>
-                </div>
-                <div className="p-4 flex flex-col gap-3">
-                  <div className="self-end rounded-2xl rounded-br-sm px-4 py-2 text-sm max-w-[80%]" style={{ background: "#222", border: "1px solid #333", color: "#e0e0e0" }}>
-                    Quiero armar un living nórdico con presupuesto de $300.000
+            <div className="bg-white p-8 md:p-12 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-8">
+              <div className="md:w-1/2 text-center md:text-left">
+                <p style={{ color: C.gray, marginBottom: 24 }}>
+                  No te entregamos un informe de consultoría para que lo implementes vos. Diseñamos la
+                  estrategia junto a tu equipo directivo y la ejecutamos con un equipo de expertos
+                  virtuales entrenado en tu negocio, liberando a tu gente para que se enfoque en las
+                  decisiones de alto nivel.
+                </p>
+                <a href="#soluciones" style={{ color: C.violet, fontWeight: 700, textDecoration: "none" }}>
+                  Ver Soluciones en Acción →
+                </a>
+              </div>
+              <div className="md:w-1/2 w-full">
+                <div className="p-6 rounded-lg text-center space-y-4" style={{ background: C.lightGray }}>
+                  <div className="font-bold">Tu Objetivo de Negocio</div>
+                  <div className="text-2xl" style={{ color: C.violet }}>↓</div>
+                  <div className="p-4 rounded-md shadow-inner text-white" style={{ background: C.violet }}>
+                    <h5 className="font-bold">Consultor Foco</h5>
+                    <p className="text-sm">(Estratega + Ejecutor + Supervisor)</p>
                   </div>
-                  <div className="text-sm max-w-[90%]" style={{ color: "#a0a0a0" }}>
-                    ¡Perfecto! Armé un combo nórdico con productos de tu tienda:
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {[
-                      { cat: "Iluminación", name: "Velador Luna Natural", price: "$84.900" },
-                      { cat: "Textil Hogar", name: "Almohadón Lino Beige", price: "$42.000" },
-                    ].map((p) => (
-                      <div key={p.name} className="rounded-xl p-3 flex items-center gap-3" style={{ background: "#1e1e1e", border: "1px solid #2e2e2e" }}>
-                        <div className="w-10 h-10 rounded-lg flex-shrink-0" style={{ background: "#2a2a2a" }}></div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs" style={{ color: "#606060" }}>{p.cat}</div>
-                          <div className="text-xs font-medium truncate" style={{ color: "#e0e0e0" }}>{p.name}</div>
-                          <div className="text-xs font-semibold text-white">{p.price}</div>
-                        </div>
-                        <div className="text-xs rounded-lg px-2 py-1" style={{ color: "#666", border: "1px solid #2e2e2e" }}>↺</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-2 rounded-xl px-3 py-2 text-xs" style={{ background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#555" }}>
-                    Ajustá el estilo, presupuesto o una categoría…
-                  </div>
+                  <div className="text-2xl" style={{ color: C.violet }}>↓</div>
+                  <div className="font-bold text-green-500">Resultado Medible</div>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ── Lo que recibís ── */}
-        <section className="pb-24">
-          <p className="text-xs uppercase tracking-widest text-center mb-4" style={{ color: "#606060" }}>Lo que recibís</p>
-          <h2 className="text-3xl font-bold text-white text-center mb-3 tracking-tight">
-            El widget.<br />
-            <span style={{ color: "#a0a0a0" }}>Y algo más valioso todavía.</span>
-          </h2>
-          <p className="text-center max-w-xl mx-auto mb-12 text-lg leading-relaxed" style={{ color: "#a8a8a8" }}>
-            Ya no se trata solo de un chat. Stockfish actúa como una extensión de tu negocio.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="flex gap-4 p-6 rounded-2xl border" style={{ background: "#1f1f1f", borderColor: "#2e2e2e" }}>
-                <span className="text-2xl flex-shrink-0 mt-0.5">{f.icon}</span>
-                <div>
-                  <h3 className="text-base font-semibold text-white mb-1">{f.title}</h3>
-                  <p className="text-sm leading-relaxed" style={{ color: "#a0a0a0" }}>{f.body}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── Dashboard preview ── */}
-        <section className="pb-24">
-          <div className="rounded-3xl border p-8 md:p-12" style={{ background: "#1c1c1c", borderColor: "#2a2a2a" }}>
-            <div className="flex flex-col md:flex-row gap-10 items-center">
-              <div className="flex-1">
-                <p className="text-xs uppercase tracking-widest mb-3" style={{ color: "#606060" }}>Dashboard de insights</p>
-                <h2 className="text-2xl font-bold text-white mb-4 tracking-tight">
-                  Sabés exactamente qué buscan tus clientes
-                </h2>
-                <ul className="flex flex-col gap-3">
-                  {[
-                    "Top búsquedas de la semana",
-                    "Categorías más pedidas",
-                    "Qué no encuentran (gaps de catálogo)",
-                    "Export CSV para tu equipo",
-                  ].map((item) => (
-                    <li key={item} className="flex items-center gap-3 text-sm" style={{ color: "#a8a8a8" }}>
-                      <span className="w-4 h-4 rounded-full flex items-center justify-center text-green-400 text-xs flex-shrink-0" style={{ background: "#1a3a1a", border: "1px solid #2a5a2a" }}>✓</span>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="flex-1 w-full">
-                <div className="rounded-2xl border p-5 flex flex-col gap-4" style={{ background: "#141414", borderColor: "#2a2a2a" }}>
-                  <div className="flex gap-3">
-                    {[
-                      { label: "Búsquedas", val: "247" },
-                      { label: "Sesiones",  val: "183" },
-                      { label: "Sin stock", val: "12%" },
-                    ].map((s) => (
-                      <div key={s.label} className="flex-1 rounded-xl p-3 border" style={{ background: "#1e1e1e", borderColor: "#2e2e2e" }}>
-                        <div className="text-xl font-bold text-white">{s.val}</div>
-                        <div className="text-xs mt-0.5" style={{ color: "#666" }}>{s.label}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div>
-                    <div className="text-xs mb-2" style={{ color: "#666" }}>Top búsquedas</div>
-                    {[
-                      { q: "living nórdico con madera", n: 38 },
-                      { q: "velador forma de hongo",    n: 27 },
-                      { q: "alfombra beige grande",     n: 19 },
-                    ].map((item) => (
-                      <div key={item.q} className="flex items-center gap-2 mb-1.5">
-                        <div className="flex-1 rounded h-1.5" style={{ background: "#2a2a2a" }}>
-                          <div className="h-full rounded" style={{ width: `${(item.n / 38) * 100}%`, background: "#7c74ff" }} />
-                        </div>
-                        <span className="text-xs w-24 truncate" style={{ color: "#666" }}>{item.q}</span>
-                        <span className="text-xs w-5 text-right" style={{ color: "#555" }}>{item.n}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+        {/* ── Soluciones ── */}
+        <section id="soluciones" style={{ background: C.lightGray }}>
+          <div className="container mx-auto px-6 py-20" style={{ maxWidth: 1200 }}>
+            <div className="text-center mb-12">
+              <h3 className="foco-display font-bold" style={{ fontSize: "clamp(1.75rem, 3vw, 2.25rem)" }}>
+                Nuestras Soluciones en Acción
+              </h3>
             </div>
+            <div className="grid md:grid-cols-3 gap-8">
+              {[
+                { title: "Visibilidad Orgánica (SEO)",    body: "Diseñamos la estrategia de posicionamiento y la ejecutamos: investigamos tu mercado, analizamos a tu competencia y producimos contenido de alta calidad para posicionar tu marca en Google." },
+                { title: "Construcción de Audiencia",     body: "Definimos tu estrategia de contenidos mensual y la llevamos a cabo: creamos todas las publicaciones para redes sociales, listas para programar." },
+                { title: "Generación de Oportunidades",  body: "Armamos tu estrategia comercial y la ejecutamos: prospectamos, calificamos y redactamos secuencias de contacto para llenar tu embudo de ventas con reuniones de calidad." },
+              ].map((s) => (
+                <div key={s.title} className="bg-white p-8 rounded-xl shadow-md">
+                  <h4 className="foco-display font-bold text-2xl mb-3">{s.title}</h4>
+                  <p style={{ color: C.gray }}>{s.body}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-center mt-12 text-lg" style={{ color: C.gray }}>
+              <span style={{ fontWeight: 700, color: C.dark }}>Y esto es solo el comienzo.</span>{" "}
+              Nuestro framework de consultoría nos permite diseñar soluciones a medida para resolver los desafíos únicos de tu negocio.
+            </p>
           </div>
         </section>
 
-        {/* ── Tracción ── */}
-        <section className="pb-24">
-          <p className="text-xs uppercase tracking-widest text-center mb-4" style={{ color: "#606060" }}>Tracción</p>
-          <h2 className="text-3xl font-bold text-white text-center mb-3 tracking-tight">
-            Ya funciona.<br />
-            <span style={{ color: "#7c74ff" }}>En tiendas reales.</span>
-          </h2>
-          <p className="text-center max-w-xl mx-auto mb-10 text-lg leading-relaxed" style={{ color: "#a8a8a8" }}>
-            No es un prototipo. Es un producto en producción con catálogos reales de tiendas argentinas.
-          </p>
-          <div className="flex flex-col gap-3">
-            {PILOTS.map((p) => (
-              <div key={p.name} className="flex items-center justify-between px-6 py-4 rounded-2xl border" style={{ background: "#1f1f1f", borderColor: "#2e2e2e" }}>
-                <div className="flex items-center gap-3">
-                  {p.active && <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />}
-                  {!p.active && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "#2e2e2e" }} />}
-                  <span className="font-medium text-white">{p.name}</span>
-                  {p.active && (
-                    <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: "#1a3a1a", border: "1px solid #2a5a2a", color: "#6ee36e" }}>piloto activo</span>
-                  )}
+        {/* ── Diferencial ── */}
+        <section>
+          <div className="container mx-auto px-6 py-20 text-center" style={{ maxWidth: 900 }}>
+            <h3 className="foco-display font-bold" style={{ fontSize: "clamp(1.75rem, 3vw, 2.25rem)" }}>
+              La Tecnología es la Herramienta,{" "}
+              <br />
+              <span className="gradient-text">no el Objetivo.</span>
+            </h3>
+            <p className="mt-6 text-lg" style={{ color: C.gray }}>
+              En Foco, nuestra obsesión no es la inteligencia artificial, es tu rentabilidad.
+              Combinamos años de experiencia en estrategia de negocios con la vanguardia en
+              automatización para diseñar soluciones que no solo son innovadoras, sino mediblemente
+              rentables. Hablamos el idioma de tu directorio, no solo el de los ingenieros.
+            </p>
+          </div>
+        </section>
+
+        {/* ── CTA ── */}
+        <section id="contacto" style={{ background: C.dark }}>
+          <div className="container mx-auto px-6 py-20 text-center text-white" style={{ maxWidth: 900 }}>
+            <h3 className="foco-display font-bold" style={{ fontSize: "clamp(1.75rem, 3vw, 2.25rem)" }}>
+              ¿Listo para escalar tu eficiencia?
+            </h3>
+            <p className="mt-4 text-lg mx-auto" style={{ color: "#D1D5DB", maxWidth: 600 }}>
+              Solicitá un Diagnóstico de Eficiencia Gratuito. En una sesión de 30 minutos, sin compromiso,
+              analizaremos uno de sus procesos clave y te presentaremos un plan de acción claro.
+            </p>
+            <button className="foco-btn mt-8" style={{ fontSize: "1.125rem" }} onClick={openModal}>
+              Agendar mi Diagnóstico Gratuito
+            </button>
+          </div>
+        </section>
+
+        {/* ── Footer ── */}
+        <footer className="bg-white">
+          <div className="container mx-auto px-6 py-8 text-center" style={{ color: C.gray }}>
+            <p>© 2025 Foco. Todos los derechos reservados.</p>
+          </div>
+        </footer>
+
+        {/* ── Modal ── */}
+        {modalOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.5)" }}
+            onClick={(e) => e.target === e.currentTarget && closeModal()}
+          >
+            <div className="bg-white rounded-2xl shadow-2xl p-8 w-full relative" style={{ maxWidth: 480 }}>
+              <button
+                onClick={closeModal}
+                className="absolute top-4 right-5 text-2xl leading-none"
+                style={{ color: C.gray, background: "none", border: "none", cursor: "pointer" }}
+              >
+                ×
+              </button>
+
+              {submitted ? (
+                <div className="text-center py-4">
+                  <h3 className="foco-display font-bold text-2xl mb-4 text-green-500">¡Mensaje Enviado!</h3>
+                  <p style={{ color: C.gray, marginBottom: 24 }}>
+                    Gracias por contactarnos. Te respondemos a la brevedad para coordinar la sesión.
+                  </p>
+                  <button className="foco-btn-sm" onClick={closeModal}>Cerrar</button>
                 </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm" style={{ color: "#666" }}>{p.products} productos</span>
-                  {p.active && (
-                    <Link
-                      href={`/widget/${p.name.toLowerCase().replace(" ", "")}`}
-                      target="_blank"
-                      className="text-xs border px-3 py-1.5 rounded-full transition-colors hover:text-white"
-                      style={{ color: "#888", borderColor: "#2e2e2e" }}
+              ) : (
+                <>
+                  <h3 className="foco-display font-bold text-2xl mb-2">Solicitar Diagnóstico Gratuito</h3>
+                  <p style={{ color: C.gray, marginBottom: 24, fontSize: 14 }}>
+                    Completá tus datos y nos pondremos en contacto a la brevedad.
+                  </p>
+                  <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                    <div>
+                      <label className="block font-semibold mb-1 text-sm">Nombre</label>
+                      <input className="foco-input" name="nombre" type="text" placeholder="Tu nombre" required />
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1 text-sm">Email</label>
+                      <input className="foco-input" name="email" type="email" placeholder="tu@email.com" required />
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1 text-sm">Teléfono (opcional)</label>
+                      <input className="foco-input" name="telefono" type="tel" placeholder="+54 11..." />
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1 text-sm">Mensaje (opcional)</label>
+                      <textarea
+                        className="foco-input"
+                        name="mensaje"
+                        rows={3}
+                        style={{ resize: "vertical" }}
+                        placeholder="Contanos sobre tu negocio o el proceso que querés optimizar."
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="foco-btn w-full"
+                      disabled={sending}
+                      style={{ opacity: sending ? 0.6 : 1 }}
                     >
-                      Ver widget →
-                    </Link>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── Pricing ── */}
-        <section className="pb-24">
-          <p className="text-xs uppercase tracking-widest text-center mb-4" style={{ color: "#606060" }}>Inversión</p>
-          <h2 className="text-3xl font-bold text-white text-center mb-12 tracking-tight">
-            Simple. Predecible.<br />
-            <span style={{ color: "#a0a0a0" }}>Sin sorpresas.</span>
-          </h2>
-          <div className="max-w-md mx-auto">
-            <div className="bg-white text-black rounded-3xl p-10">
-              <div className="text-xs uppercase tracking-widest text-gray-400 mb-4">Plan Pro</div>
-              <div className="flex items-end gap-2 mb-2">
-                <span className="text-6xl font-black leading-none">$100</span>
-                <span className="text-xl text-gray-500 pb-1">USD / mes</span>
-              </div>
-              <p className="text-sm text-gray-500 mb-8">Sin contrato. Sin permanencia. Cancelás cuando quieras.</p>
-              <ul className="flex flex-col gap-3 mb-8">
-                {PRICE_ITEMS.map((item) => (
-                  <li key={item} className="flex items-center gap-3 text-sm">
-                    <span className="w-5 h-5 rounded-full bg-black flex items-center justify-center text-white text-xs flex-shrink-0">✓</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="/alta"
-                className="block w-full text-center bg-black text-white font-semibold py-4 rounded-xl hover:bg-gray-900 transition-colors"
-              >
-                Empezar ahora →
-              </Link>
+                      {sending ? "Enviando..." : "Enviar Solicitud"}
+                    </button>
+                  </form>
+                </>
+              )}
             </div>
-            <p className="text-center text-sm mt-4" style={{ color: "#555" }}>
-              Si el widget te cierra una sola venta por mes, ya pagó el año entero.
-            </p>
           </div>
-        </section>
-
-        {/* ── CTA final ── */}
-        <section className="pb-24">
-          <div className="rounded-3xl bg-white text-black p-10 md:p-16 text-center">
-            <h2 className="text-3xl md:text-4xl font-extrabold mb-4 tracking-tight">
-              ¿Tu tienda es de home decor?
-            </h2>
-            <p className="text-gray-600 text-lg mb-8 max-w-xl mx-auto leading-relaxed">
-              Probalo en vivo en la tienda de Alto Rancho o hablemos para mostrarte cómo quedaría en la tuya.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/alta"
-                className="bg-black text-white px-10 py-4 rounded-full text-lg font-semibold hover:bg-gray-900 transition-all shadow-lg"
-              >
-                Empezar ahora →
-              </Link>
-              <Link
-                href="/widget/altorancho"
-                target="_blank"
-                className="border border-gray-300 text-gray-700 px-8 py-4 rounded-full text-lg font-medium hover:border-gray-500 transition-all"
-              >
-                Ver demo en vivo
-              </Link>
-            </div>
-            <p className="text-gray-400 text-sm mt-4">focobusiness.com · hola@focobusiness.com</p>
-          </div>
-        </section>
-
-      </main>
-
-      <footer className="max-w-5xl mx-auto px-6 py-10 border-t flex flex-col sm:flex-row justify-between items-center gap-4 text-sm" style={{ borderColor: "#222", color: "#555" }}>
-        <p>© 2026 Stockfish · focobusiness.com</p>
-        <div className="flex gap-6">
-          <Link href="/widget/altorancho" target="_blank" className="hover:text-white transition-colors">Ver demo</Link>
-          <Link href="/alta" className="hover:text-white transition-colors">Empezar</Link>
-        </div>
-      </footer>
-
-    </div>
+        )}
+      </div>
+    </>
   );
 }

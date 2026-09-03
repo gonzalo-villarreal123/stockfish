@@ -2,51 +2,38 @@ import type { Metadata } from "next";
 import "./globals.css";
 import ReferralCapture from "../components/ReferralCapture";
 
-const APP_URL = "https://stockfish.ar";
-const OG_IMAGE = `${APP_URL}/og.png`;
+const APP_URL = "https://focobusiness.com";
 
 export const metadata: Metadata = {
-  title: "Stockfish — El vendedor IA para tu tienda de deco",
+  title: "Foco — Consultora de Negocios con Ejecución Autónoma",
   description:
-    "Widget de IA embebible para tiendas de home decor. Tus clientes buscan en lenguaje natural, la IA encuentra productos de tu catálogo y arma combos coordinados. Live en menos de una hora.",
+    "Diseñamos tu estrategia de negocio y la ejecutamos con equipos de IA autónomos integrados en el corazón de tu operación. No solo te decimos qué hacer: lo hacemos.",
   metadataBase: new URL(APP_URL),
   openGraph: {
     type: "website",
     url: APP_URL,
-    siteName: "Stockfish",
-    title: "Stockfish — El vendedor IA para tu tienda de deco",
+    siteName: "Foco",
+    title: "Foco — Consultora de Negocios con Ejecución Autónoma",
     description:
-      "Widget IA para tiendas de home decor en Argentina. Tus clientes buscan en lenguaje natural, la IA encuentra productos de tu catálogo. $100 USD/mes. Sin contrato.",
-    images: [
-      {
-        url: OG_IMAGE,
-        width: 1200,
-        height: 630,
-        alt: "Stockfish — Decoración con IA para Argentina",
-      },
-    ],
+      "Escala tu operación, no tus costos. Estrategia de negocio diseñada por consultores y ejecutada por equipos de IA autónomos.",
     locale: "es_AR",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Stockfish — Encontrá tu estilo. Sin usar filtros.",
+    title: "Foco — Escala tu Operación, no tus Costos.",
     description:
-      "Describí cómo querés decorar y la IA te arma el combo perfecto de muebles y deco de tiendas argentinas.",
-    images: [OG_IMAGE],
-    creator: "@stockfish_ar",
+      "Consultoría de negocios que diseña la estrategia y la ejecuta con equipos de IA autónomos.",
   },
   robots: {
     index: true,
     follow: true,
   },
   keywords: [
-    "decoración argentina",
-    "muebles con IA",
-    "decoración inteligente",
-    "home decor Argentina",
-    "buscar muebles IA",
-    "decoración living",
-    "combo decoración",
+    "consultoría de negocios Argentina",
+    "automatización con IA",
+    "equipos de IA autónomos",
+    "eficiencia operativa",
+    "automatización de procesos",
   ],
 };
 
